@@ -84,6 +84,8 @@ class TransactionLockMgr {
   std::vector<DeadlockPath> GetDeadlockInfoBuffer();
   void Resize(uint32_t);
 
+  void SetRowWaitCallback(row_wait_callback_t callback) { row_wait_callback= callback; }
+
  private:
   PessimisticTransactionDB* txn_db_impl_;
 
@@ -149,6 +151,7 @@ class TransactionLockMgr {
   void DecrementWaitersImpl(const PessimisticTransaction* txn,
                             const autovector<TransactionID>& wait_ids);
 
+  row_wait_callback_t row_wait_callback;
   // No copying allowed
   TransactionLockMgr(const TransactionLockMgr&);
   void operator=(const TransactionLockMgr&);

@@ -173,7 +173,8 @@ TransactionLockMgr::TransactionLockMgr(
       max_num_locks_(max_num_locks),
       lock_maps_cache_(new ThreadLocalPtr(&UnrefLockMapsCache)),
       dlock_buffer_(max_num_deadlocks),
-      mutex_factory_(mutex_factory) {
+      mutex_factory_(mutex_factory),
+      row_wait_callback(NULL) {
   assert(txn_db);
   txn_db_impl_ =
       static_cast_with_check<PessimisticTransactionDB, TransactionDB>(txn_db);
@@ -383,6 +384,18 @@ Status TransactionLockMgr::AcquireWithTimeout(
       }
 
       TEST_SYNC_POINT("TransactionLockMgr::AcquireWithTimeout:WaitingTxn");
+
+      //psergey: Call the MariaDB callback to inform it that 
+      //  transaction X is doing a row lock wait for a lock that
+      //  is held by transaction Y.
+      //
+      //  Transaction Y 
+      if (row_wait_callback)
+      {
+        for (auto it= wait_ids.begin(); it != wait_ids.end(); it++)
+          row_wait_callback(txn->GetID(), *it);
+      }
+
       if (cv_end_time < 0) {
         // Wait indefinitely
         result = stripe->stripe_cv->Wait(stripe->stripe_mutex);

@@ -156,6 +156,11 @@ struct DeadlockPath {
   bool empty() { return path.empty() && !limit_exceeded; }
 };
 
+
+typedef void (*row_wait_callback_t)(rocksdb::TransactionID waiter, 
+                                  rocksdb::TransactionID waitee);
+
+
 class TransactionDB : public StackableDB {
  public:
   // Open a TransactionDB similar to DB::Open().
@@ -216,6 +221,8 @@ class TransactionDB : public StackableDB {
   GetLockStatusData() = 0;
   virtual std::vector<DeadlockPath> GetDeadlockInfoBuffer() = 0;
   virtual void SetDeadlockInfoBufferSize(uint32_t target_size) = 0;
+
+  virtual void SetRowWaitCallback(row_wait_callback_t callback) {}
 
  protected:
   // To Create an TransactionDB, call Open()

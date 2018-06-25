@@ -113,6 +113,10 @@ class PessimisticTransactionDB : public TransactionDB {
   std::vector<DeadlockPath> GetDeadlockInfoBuffer() override;
   void SetDeadlockInfoBufferSize(uint32_t target_size) override;
 
+  virtual void SetRowWaitCallback(row_wait_callback_t callback) override {
+    lock_mgr_.SetRowWaitCallback(callback);
+  }
+
  protected:
   DBImpl* db_impl_;
   std::shared_ptr<Logger> info_log_;
