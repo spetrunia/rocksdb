@@ -101,8 +101,8 @@ class PessimisticTransactionDB : public TransactionDB {
                  const std::string& key, bool exclusive);
   Status TryRangeLock(PessimisticTransaction* txn,
                       uint32_t cfh_id,
-                      const Slice& start_key,
-                      const Slice& end_key);
+                      const Slice& start_endp,
+                      const Slice& end_endp);
 
   void UnLock(PessimisticTransaction* txn, const TransactionKeyMap* keys,
               bool all_keys_hint=false);
@@ -148,8 +148,7 @@ class PessimisticTransactionDB : public TransactionDB {
   virtual void UpdateCFComparatorMap(const std::vector<ColumnFamilyHandle*>&) {}
   virtual void UpdateCFComparatorMap(ColumnFamilyHandle*) {}
 
-  void KillLockWait(void *cdata) override 
-  { 
+  void KillLockWait(void *cdata) override {
     if (use_range_locking)
       range_lock_mgr_.KillLockWait(cdata);
   }
