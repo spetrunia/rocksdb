@@ -1063,6 +1063,12 @@ RangeLockMgr::set_endpoint_cmp_functions(convert_key_to_endpoint_func cvt_func,
   lt= ltm.get_lt(dict_id, cmp , /* on_create_extra*/nullptr);
 }
 
+RangeLockMgr::~RangeLockMgr() {
+  if (lt) {
+    ltm.release_lt(lt);
+  }
+  ltm.destroy();
+}
 
 uint64_t RangeLockMgr::get_escalation_count() {
   LTM_STATUS_S ltm_status_test;
