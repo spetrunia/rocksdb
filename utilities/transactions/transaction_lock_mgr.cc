@@ -1007,6 +1007,7 @@ int RangeLockMgr::compare_dbt_endpoints(__toku_db*, void *arg,
 RangeLockMgr::RangeLockMgr(TransactionDB* txn_db) : my_txn_db(txn_db) {
   ltm.create(on_create, on_destroy, on_escalate, NULL);
   lt= nullptr;
+  cmp_initialized_= false;
 }
 
 
@@ -1058,6 +1059,7 @@ RangeLockMgr::set_endpoint_cmp_functions(convert_key_to_endpoint_func cvt_func,
   assert(!lt);
 
   cmp_.create(compare_dbt_endpoints, (void*)this, NULL);
+  cmp_initialized_ = true;
   DICTIONARY_ID dict_id = { .dictid = 1 };
   lt= ltm.get_lt(dict_id, cmp_, /* on_create_extra*/nullptr);
 }
@@ -1067,7 +1069,8 @@ RangeLockMgr::~RangeLockMgr() {
     ltm.release_lt(lt);
   }
   ltm.destroy();
-  cmp_.destroy();
+  if (cmp_initialized_)
+    cmp_.destroy();
 }
 
 uint64_t RangeLockMgr::get_escalation_count() {
