@@ -537,6 +537,7 @@ TESTS = \
 	db_universal_compaction_test \
 	trace_analyzer_test \
 	repeatable_thread_test \
+        range_locking_test \
 
 PARALLEL_TEST = \
 	backupable_db_test \
