@@ -33,6 +33,24 @@ enum TxnDBWritePolicy {
 
 const uint32_t kInitialMaxDeadlocks = 5;
 
+struct RangeLockingOptions {
+  typedef void (*convert_key_to_endpoint_func)(const rocksdb::Slice &key,
+                                               std::string *endpoint);
+
+  typedef int (*compare_endpoints_func)(const char *a, size_t a_len,
+                                         const char *b, size_t b_len);
+
+  // TODO:  So, functions to compare ranges are here, while
+  // functions to compare rowkeys are in per-column family and are in
+  //  rocksdb::ColumnFamilyOptions
+  //
+  // TODO: Can we change this to work in a way that does not expose the endpoints
+  //  to the user (like discussed on the meeting?)
+  //
+  convert_key_to_endpoint_func cvt_func;
+  compare_endpoints_func cmp_func;
+};
+
 struct TransactionDBOptions {
   // Specifies the maximum number of keys that can be locked at the same time
   // per column family.
@@ -93,6 +111,13 @@ struct TransactionDBOptions {
   // logic in myrocks. This hack of simply not rolling back merge operands works
   // for the special way that myrocks uses this operands.
   bool rollback_merge_operands = false;
+  
+  // If true, range_locking_opts specifies options on range locking (filling
+  // the struct is mandatory)
+  bool use_range_locking = false;
+
+  // Members are valid if use_range_locking= true.
+  RangeLockingOptions range_locking_opts;
 
   // If true, the TransactionDB implementation might skip concurrency control
   // unless it is overridden by TransactionOptions or
@@ -213,15 +238,6 @@ struct DeadlockPath {
 class RangeLockMgrControl {
  public:
 
-  typedef void (*convert_key_to_endpoint_func)(const rocksdb::Slice &key,
-                                               std::string *endpoint);
-
-  typedef int (*compare_endpoints_func)(const char *a, size_t a_len,
-                                         const char *b, size_t b_len);
-
-  virtual void set_endpoint_cmp_functions(convert_key_to_endpoint_func cvt_func,
-                                         compare_endpoints_func cmp_func)=0;
-
   virtual int set_max_lock_memory(size_t max_lock_memory) = 0;
   virtual uint64_t get_escalation_count() = 0;
 
@@ -302,15 +318,11 @@ class TransactionDB : public StackableDB {
   virtual std::vector<DeadlockPath> GetDeadlockInfoBuffer() = 0;
   virtual void SetDeadlockInfoBufferSize(uint32_t target_size) = 0;
   
-
-  // psergey-TODO: any better interface for this?
-  bool use_range_locking;
   virtual RangeLockMgrControl* get_range_lock_manager() { return nullptr; }
-
  protected:
   // To Create an TransactionDB, call Open()
   // The ownership of db is transferred to the base StackableDB
-  explicit TransactionDB(DB* db) : StackableDB(db), use_range_locking(false) {}
+  explicit TransactionDB(DB* db) : StackableDB(db) {}
 
  private:
   // No copying allowed
