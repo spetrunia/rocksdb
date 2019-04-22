@@ -50,7 +50,8 @@ PessimisticTransaction::PessimisticTransaction(
       skip_concurrency_control_(false) {
   txn_db_impl_ =
       static_cast_with_check<PessimisticTransactionDB, TransactionDB>(txn_db);
-  do_key_tracking_ = !txn_db_impl_->get_range_lock_manager();
+
+  do_key_tracking_ = txn_db_impl_->ShouldDoKeyTracking();
   db_impl_ = static_cast_with_check<DBImpl, DB>(db_);
   Initialize(txn_options);
 }
