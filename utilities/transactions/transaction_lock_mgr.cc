@@ -826,7 +826,7 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
                                   uint32_t column_family_id,
                                   const Endpoint &start_endp,
                                   const Endpoint &end_endp,
-                                  bool /*exclusive*/) {
+                                  bool exclusive) {
   toku::lock_request request;
   request.create(mutex_factory_);
   DBT start_key_dbt, end_key_dbt;
@@ -848,7 +848,8 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
   auto lt= get_locktree_by_cfid(column_family_id);
 
   request.set(lt, (TXNID)txn, &start_key_dbt, &end_key_dbt,
-              toku::lock_request::WRITE, false /* not a big txn */,
+              exclusive? toku::lock_request::WRITE: toku::lock_request::READ,
+              false /* not a big txn */,
               (void*)wait_txn_id);
   
   uint64_t killed_time_msec = 0; // TODO: what should this have?
@@ -1260,13 +1261,15 @@ struct LOCK_PRINT_CONTEXT {
 };
 
 static 
-void push_into_lock_status_data(void* param, const DBT *left, 
-                                const DBT *right, TXNID txnid_arg) {
+void push_into_lock_status_data(void* param,
+                                const DBT *left, const DBT *right,
+                                TXNID txnid_arg, bool is_shared,
+                                TxnidVector *owners) {
   struct LOCK_PRINT_CONTEXT *ctx= (LOCK_PRINT_CONTEXT*)param;
   struct KeyLockInfo info;
 
   info.key.append((const char*)left->data, (size_t)left->size);
-  info.exclusive= true;
+  info.exclusive= !is_shared;
 
   if (!(left->size == right->size && 
         !memcmp(left->data, right->data, left->size)))
@@ -1276,8 +1279,15 @@ void push_into_lock_status_data(void* param, const DBT *left,
     info.key2.append((const char*)right->data, right->size);
   }
 
-  TXNID txnid= ((PessimisticTransaction*)txnid_arg)->GetID();
-  info.ids.push_back(txnid);
+  if (txnid_arg != TXNID_SHARED) {
+    TXNID txnid= ((PessimisticTransaction*)txnid_arg)->GetID();
+    info.ids.push_back(txnid);
+  } else {
+    for (auto it : *owners) {
+      TXNID real_id= ((PessimisticTransaction*)it)->GetID();
+      info.ids.push_back(real_id);
+    }
+  }
   ctx->data->insert({ctx->cfh_id, info});
 }
 
