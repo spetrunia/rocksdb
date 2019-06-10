@@ -1154,25 +1154,25 @@ RangeLockMgr::~RangeLockMgr() {
   ltm_.destroy();
 }
 
-uint64_t RangeLockMgr::get_escalation_count() {
+RangeLockMgrHandle::Counters RangeLockMgr::GetStatus() {
   LTM_STATUS_S ltm_status_test;
   ltm_.get_status(&ltm_status_test);
+  Counters res;
   
   // Searching status variable by its string name is how Toku's unit tests
   // do it (why didn't they make LTM_ESCALATION_COUNT constant visible?)
-  TOKU_ENGINE_STATUS_ROW key_status = NULL;
   // lookup keyname in status
-  for (int i = 0; ; i++) {
+  for (int i = 0; i < LTM_STATUS_S::LTM_STATUS_NUM_ROWS; i++) {
       TOKU_ENGINE_STATUS_ROW status = &ltm_status_test.status[i];
-      if (status->keyname == NULL)
-          break;
       if (strcmp(status->keyname, "LTM_ESCALATION_COUNT") == 0) {
-          key_status = status;
-          break;
+          res.escalation_count = status->value.num;
+          continue;
+      }
+      if (strcmp(status->keyname, "LTM_SIZE_CURRENT") == 0) {
+          res.current_lock_memory = status->value.num;
       }
   }
-  assert(key_status);
-  return key_status->value.num;
+  return res;
 }
 
 void RangeLockMgr::AddColumnFamily(const ColumnFamilyHandle *cfh) {

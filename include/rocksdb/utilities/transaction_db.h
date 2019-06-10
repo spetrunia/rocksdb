@@ -38,7 +38,14 @@ const uint32_t kInitialMaxDeadlocks = 5;
 class RangeLockMgrHandle {
  public:
   virtual int set_max_lock_memory(size_t max_lock_memory) = 0;
-  virtual uint64_t get_escalation_count() = 0;
+
+  class Counters {
+   public:
+    uint64_t escalation_count;
+    uint64_t current_lock_memory;
+  };
+
+  virtual Counters GetStatus() = 0;
   virtual ~RangeLockMgrHandle() {};
 };
 

@@ -742,11 +742,16 @@ static int extract_first_n_row_locks(concurrent_tree::locked_keyrange *lkr,
         int num_to_extract;
         row_lock *row_locks;
         bool fn(const keyrange &range, TXNID txnid, bool is_shared, TxnidVector *owners) {
-            // psergey-todo: multiple owners!
             if (num_extracted < num_to_extract) {
                 row_lock lock;
                 lock.range.create_copy(range);
                 lock.txnid = txnid;
+                lock.is_shared= is_shared;
+                // deep-copy the set of owners:
+                if (owners)
+                    lock.owners = new TxnidVector(*owners);
+                else
+                    lock.owners = nullptr;
                 row_locks[num_extracted++] = lock;
                 return true;
             } else {
@@ -834,38 +839,60 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_esca
             // through them and merge adjacent locks with the same txnid into
             // one dominating lock and save it to a set of escalated locks.
             //
-            // first, find the index of the next row lock with a different txnid
+            // first, find the index of the next row lock that
+            //  - belongs to a different txnid, or
+            //  - belongs to several txnids, or
+            //  - is a shared lock (we could potentially merge those but
+            //    currently we don't)
             int next_txnid_index = current_index + 1;
+
             while (next_txnid_index < num_extracted &&
-                    extracted_buf[current_index].txnid == extracted_buf[next_txnid_index].txnid) {
+                   (extracted_buf[current_index].txnid ==
+                    extracted_buf[next_txnid_index].txnid) &&
+                   !extracted_buf[next_txnid_index].is_shared &&
+                   !extracted_buf[next_txnid_index].owners) {
                 next_txnid_index++;
             }
 
             // Create an escalated range for the current txnid that dominates
             // each range between the current indext and the next txnid's index.
-            const TXNID current_txnid = extracted_buf[current_index].txnid;
+            //const TXNID current_txnid = extracted_buf[current_index].txnid;
             const DBT *escalated_left_key = extracted_buf[current_index].range.get_left_key(); 
             const DBT *escalated_right_key = extracted_buf[next_txnid_index - 1].range.get_right_key();
 
             // Try to find a range buffer for the current txnid. Create one if it doesn't exist.
             // Then, append the new escalated range to the buffer.
-            uint32_t idx;
-            struct txnid_range_buffer *existing_range_buffer;
-            int r = range_buffers.find_zero<TXNID, txnid_range_buffer::find_by_txnid>(
-                    current_txnid,
-                    &existing_range_buffer,
-                    &idx
-                    );
-            if (r == DB_NOTFOUND) {
-                struct txnid_range_buffer *XMALLOC(new_range_buffer);
-                new_range_buffer->txnid = current_txnid;
-                new_range_buffer->buffer.create();
-                new_range_buffer->buffer.append(escalated_left_key, escalated_right_key);
-                range_buffers.insert_at(new_range_buffer, idx);
-            } else {
-                invariant_zero(r);
-                invariant(existing_range_buffer->txnid == current_txnid);
-                existing_range_buffer->buffer.append(escalated_left_key, escalated_right_key);
+            // (If a lock is shared by multiple txnids, append it each of txnid's lists)
+            TxnidVector *owners_ptr;
+            TxnidVector singleton_owner;
+            if (extracted_buf[current_index].owners)
+                owners_ptr = extracted_buf[current_index].owners;
+            else {
+                singleton_owner.insert(extracted_buf[current_index].txnid);
+                owners_ptr = &singleton_owner;
+            }
+
+            for (auto cur_txnid : *owners_ptr ) {
+                uint32_t idx;
+                struct txnid_range_buffer *existing_range_buffer;
+                int r = range_buffers.find_zero<TXNID, txnid_range_buffer::find_by_txnid>(
+                        cur_txnid,
+                        &existing_range_buffer,
+                        &idx
+                        );
+                if (r == DB_NOTFOUND) {
+                    struct txnid_range_buffer *XMALLOC(new_range_buffer);
+                    new_range_buffer->txnid = cur_txnid;
+                    new_range_buffer->buffer.create();
+                    new_range_buffer->buffer.append(escalated_left_key, escalated_right_key,
+                                                    !extracted_buf[current_index].is_shared);
+                    range_buffers.insert_at(new_range_buffer, idx);
+                } else {
+                    invariant_zero(r);
+                    invariant(existing_range_buffer->txnid == cur_txnid);
+                    existing_range_buffer->buffer.append(escalated_left_key, escalated_right_key,
+                                                         !extracted_buf[current_index].is_shared);
+                }
             }
 
             current_index = next_txnid_index;
@@ -873,6 +900,7 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_esca
 
         // destroy the ranges copied during the extraction
         for (int i = 0; i < num_extracted; i++) {
+            delete extracted_buf[i].owners;
             extracted_buf[i].range.destroy();
         }
     }
@@ -880,6 +908,12 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_esca
 
     // Rebuild the locktree from each range in each range buffer,
     // then notify higher layers that the txnid's locks have changed.
+    //
+    // (shared locks: if a lock was initially shared between transactions TRX1,
+    //  TRX2, etc, we will now try to acquire it acting on behalf on TRX1, on
+    //  TRX2, etc.  This will succeed and an identical shared lock will be
+    //  constructed)
+
     invariant(m_rangetree->is_empty());
     const size_t num_range_buffers = range_buffers.size();
     for (size_t i = 0; i < num_range_buffers; i++) {
@@ -894,7 +928,7 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_esca
             keyrange range;
             range.create(rec.get_left_key(), rec.get_right_key());
             row_lock lock = { .range = range, .txnid = current_txnid,
-                              .is_shared= false, // psergey-todo: SharedLockEscalation 
+                              .is_shared= !rec.get_exclusive_flag(),
                               .owners= nullptr };
             insert_row_lock_into_tree(&lkr, lock, m_mgr);
             iter.next();

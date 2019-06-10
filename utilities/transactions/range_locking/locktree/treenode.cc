@@ -134,6 +134,16 @@ void treenode::swap_in_place(treenode *node1, treenode *node2) {
     node2->m_is_shared= tmp_is_shared;
 }
 
+void treenode::add_shared_owner(TXNID txnid) {
+    assert(m_is_shared);
+    if (m_txnid != TXNID_SHARED) {
+        m_owners= new TxnidVector;
+        m_owners->insert(m_txnid);
+        m_txnid= TXNID_SHARED;
+    }
+    m_owners->insert(txnid);
+}
+
 void treenode::free(treenode *node) {
     // destroy the range, freeing any copied keys
     node->m_range.destroy();

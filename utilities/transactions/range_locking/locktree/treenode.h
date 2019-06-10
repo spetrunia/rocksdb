@@ -167,17 +167,6 @@ private:
     // it has at the time of destruction.
     keyrange m_range;
 
-    void add_shared_owner(TXNID txnid)
-    {
-        assert(m_is_shared);
-        if (m_txnid != TXNID_SHARED)
-        {
-            m_owners= new TxnidVector;
-            m_owners->insert(m_txnid);
-            m_txnid= TXNID_SHARED;
-        }
-        m_owners->insert(txnid);
-    }
     void remove_shared_owner(TXNID txnid);
 
     bool has_multiple_owners() { return (m_txnid == TXNID_SHARED); }
