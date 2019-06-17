@@ -54,7 +54,7 @@ class RangeLockingTest : public ::testing::Test {
     Status s;
 
     range_lock_mgr.reset(rocksdb::NewRangeLockManager(nullptr));
-    txn_db_options.range_lock_mgr = range_lock_mgr;
+    txn_db_options.lock_mgr_handle = range_lock_mgr;
 
     s = TransactionDB::Open(options, txn_db_options, dbname, &db);
     assert(s.ok());
