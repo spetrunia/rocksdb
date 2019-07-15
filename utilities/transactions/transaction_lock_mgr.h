@@ -244,9 +244,6 @@ class RangeLockMgr :
 
   LockStatusData GetLockStatusData() override;
 
-  BaseLockMgr* GetManager() override {
-    return this;
-  }
  private:
   toku::locktree_manager ltm_;
 
