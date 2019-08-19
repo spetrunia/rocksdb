@@ -240,7 +240,11 @@ class RangeLockMgr :
     return ltm_.set_max_lock_memory(max_lock_memory);
   }
 
-  uint64_t get_escalation_count() override;
+  size_t get_max_lock_memory() {
+    return ltm_.get_max_lock_memory();
+  }
+
+  Counters GetStatus() override;
 
   LockStatusData GetLockStatusData() override;
 
