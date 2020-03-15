@@ -63,6 +63,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 // PORT: ft-status for LTM_STATUS:
 #include <ft/ft-status.h>
 
+// psergey2:
+#include <urcu.h>
+
 struct DICTIONARY_ID {
     uint64_t dictid;
 };
@@ -73,8 +76,12 @@ struct DICTIONARY_ID {
 #include "wfg.h"
 #include "range_buffer.h"
 
+#include "keyrange.h"
 
 namespace toku {
+
+void synchronize_rcu_counter_add();
+void rangelock_rcu_enabled_counter_add();
 
     class locktree;
     class locktree_manager;
@@ -533,6 +540,13 @@ namespace toku {
         int try_acquire_lock(bool is_write_request, TXNID txnid,
                              const DBT *left_key, const DBT *right_key,
                              txnid_set *conflicts, bool big_txn);
+        // for RCU:
+        int acquire_lock_consolidated_part2(void *lkr_as_void,
+                                            TXNID txnid,
+                                            const DBT *left_key, const DBT *right_key,
+                                            keyrange& requested_range,
+                                            bool is_write_request,
+                                            txnid_set *conflicts);
 
 
         friend class locktree_unit_test;

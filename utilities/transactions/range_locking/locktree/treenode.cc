@@ -162,10 +162,10 @@ void treenode::free(treenode *node) {
 
     // the root is simply marked as empty.
     if (node->is_root()) {
-        // PORT toku_mutex_assert_locked(&node->m_mutex);
+        toku_mutex_assert_locked(&node->m_mutex);
         node->m_is_empty = true;
     } else {
-        //PORT toku_mutex_assert_unlocked(&node->m_mutex);
+        toku_mutex_assert_unlocked(&node->m_mutex);
         toku_mutex_destroy(&node->m_mutex);
         toku_free(node);
     }
@@ -177,35 +177,46 @@ uint32_t treenode::get_depth_estimate(void) const {
     return (left_est > right_est ? left_est : right_est) + 1;
 }
 
+
+// On entry, we're holding this node's mutex.
+// 
 treenode *treenode::find_node_with_overlapping_child(const keyrange &range,
-        const keyrange::comparison *cmp_hint) {
+        const keyrange::comparison *cmp_hint,
+        rcu_disabler *disabler) {
 
     // determine which child to look at based on a comparison. if we were
     // given a comparison hint, use that. otherwise, compare them now.
     keyrange::comparison c = cmp_hint ? *cmp_hint : range.compare(*m_cmp, m_range);
-
+    
+    toku_mutex_assert_locked(&m_mutex); // psergey
     treenode *child;
     if (c == keyrange::comparison::LESS_THAN) {
-        child = lock_and_rebalance_left();
+        child = lock_and_rebalance_left(disabler);
     } else {
         // The caller (locked_keyrange::acquire) handles the case where
         // the root of the locked_keyrange is the node that overlaps.
         // range is guaranteed not to overlap this node.
         invariant(c == keyrange::comparison::GREATER_THAN);
-        child = lock_and_rebalance_right();
+        child = lock_and_rebalance_right(disabler);
     }
 
     // if the search would lead us to an empty subtree (child == nullptr),
     // or the child overlaps, then we know this node is the parent we want.
     // otherwise we need to recur into that child.
     if (child == nullptr) {
+        if (disabler)  disabler->disable_rcu();
         return this;
     } else {
         c = range.compare(*m_cmp, child->m_range);
         if (c == keyrange::comparison::EQUALS || c == keyrange::comparison::OVERLAPS) {
             child->mutex_unlock();
+            if (disabler)  disabler->disable_rcu();
             return this;
         } else {
+            // psergey-todo: if this is the root node, enable the RCU!
+            //  we know we are at the root node if disabler!=NULL.
+            if (disabler)  disabler->enable_concurrency();
+
             // unlock this node before recurring into the locked child,
             // passing in a comparison hint since we just comapred range
             // to the child's range.
@@ -214,6 +225,22 @@ treenode *treenode::find_node_with_overlapping_child(const keyrange &range,
         }
     }
 }
+
+treenode *treenode::find_child_under_rcu(const keyrange &range) {
+    keyrange::comparison c = range.compare(*m_cmp, m_range);
+    treenode *child;
+
+    if (c == keyrange::comparison::LESS_THAN) {
+      child = m_left_child.get_locked(); /// AAAAAAAAAA
+    }
+    else if (c == keyrange::comparison::GREATER_THAN) {
+      child = m_right_child.get_locked();
+    }
+    else
+       child= nullptr;
+    return child;
+}
+
 
 template <class F>
 void treenode::traverse_overlaps(const keyrange &range, F *function) {
@@ -277,9 +304,11 @@ void treenode::insert(const keyrange &range, TXNID txnid, bool is_shared) {
             right_child->mutex_unlock();
         }
     } else if (c == keyrange::comparison::EQUALS) {
-        invariant(is_shared);
-        invariant(m_is_shared);
-        add_shared_owner(txnid);
+        if (txnid != m_txnid) {
+            invariant(is_shared);
+            invariant(m_is_shared);
+            add_shared_owner(txnid);
+        }
     } else {
         invariant(0);
     }
@@ -438,6 +467,13 @@ treenode *treenode::remove(const keyrange &range, TXNID txnid) {
     return this;
 }
 
+bool treenode::maybe_left_or_right_imbalanced(int threshold) const {
+    int32_t left_depth = m_left_child.depth_est;
+    int32_t right_depth = m_right_child.depth_est;
+        return (left_depth > threshold + right_depth) ||
+               (right_depth > threshold + left_depth);
+}
+
 bool treenode::left_imbalanced(int threshold) const {
     uint32_t left_depth = m_left_child.depth_est;
     uint32_t right_depth = m_right_child.depth_est;
@@ -455,12 +491,13 @@ bool treenode::right_imbalanced(int threshold) const {
 //         node if it is not the new root of the subtree.
 // requires: node is locked by this thread, children are not
 // returns: locked root node of the rebalanced tree
-treenode *treenode::maybe_rebalance(void) {
+treenode *treenode::maybe_rebalance(rcu_disabler *disabler) {
     // if we end up not rotating at all, the new root is this
     treenode *new_root = this;
     treenode *child = nullptr;
 
     if (left_imbalanced(IMBALANCE_THRESHOLD)) {
+        if (disabler)  disabler->disable_rcu();
         child = m_left_child.get_locked();
         if (child->right_imbalanced(0)) {
             treenode *grandchild = child->m_right_child.get_locked();
@@ -478,6 +515,7 @@ treenode *treenode::maybe_rebalance(void) {
             new_root = child;
         }
     } else if (right_imbalanced(IMBALANCE_THRESHOLD)) {
+        if (disabler)  disabler->disable_rcu();
         child = m_right_child.get_locked();
         if (child->left_imbalanced(0)) {
             treenode *grandchild = child->m_left_child.get_locked();
@@ -515,20 +553,42 @@ treenode *treenode::maybe_rebalance(void) {
 }
 
 
-treenode *treenode::lock_and_rebalance_left(void) {
+treenode *treenode::lock_and_rebalance_left(rcu_disabler *disabler) {
+    // psergey-last:
+    if (disabler)  disabler->disable_rcu();
+#if 0    
+    if (disabler) {
+        if (m_left_child.ptr->maybe_left_or_right_imbalanced())
+            disabler->disable_rcu();
+    }
+#endif    
+    toku_mutex_assert_locked(&m_mutex); // psergey
     treenode *child = m_left_child.get_locked();
     if (child) {
-        treenode *new_root = child->maybe_rebalance();
+        treenode *new_root = child->maybe_rebalance(disabler);
         m_left_child.set(new_root);
         child = new_root;
     }
     return child;
 }
 
-treenode *treenode::lock_and_rebalance_right(void) {
+treenode *treenode::lock_and_rebalance_right(rcu_disabler *disabler) {
+    // psergey-last:
+    if (disabler)  disabler->disable_rcu();
+#if 0    
+    if (disabler) {
+        if (m_left_child.ptr->maybe_left_or_right_imbalanced())
+            disabler->disable_rcu();
+        else {
+            // not allowed to make changes
+        }
+             
+    }
+#endif    
+    toku_mutex_assert_locked(&m_mutex); // psergey
     treenode *child = m_right_child.get_locked();
     if (child) {
-        treenode *new_root = child->maybe_rebalance();
+        treenode *new_root = child->maybe_rebalance(disabler);
         m_right_child.set(new_root);
         child = new_root;
     }

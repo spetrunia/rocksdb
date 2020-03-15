@@ -65,6 +65,18 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 namespace toku {
 
+class concurrent_tree;
+
+class rcu_disabler {
+public:
+    concurrent_tree *m_tree;
+    bool disabled;
+
+    rcu_disabler(concurrent_tree *c_arg) : m_tree(c_arg), disabled(false) {}
+    void disable_rcu();
+    void enable_concurrency();
+};
+
 // a node in a tree with its own mutex
 // - range is the "key" of this node
 // - txnid is the single txnid associated with this node
@@ -114,7 +126,9 @@ public:
     // given: if cmp_hint is non-null, then it is a precomputed
     //        comparison of this node's range to the given range.
     treenode *find_node_with_overlapping_child(const keyrange &range,
-            const keyrange::comparison *cmp_hint);
+            const keyrange::comparison *cmp_hint, rcu_disabler *disabler=nullptr);
+
+    treenode *find_child_under_rcu(const keyrange &range);
 
     // effect: performs an in-order traversal of the ranges that overlap the
     //         given range, calling function->fn() on each node that does
@@ -170,6 +184,11 @@ private:
     void remove_shared_owner(TXNID txnid);
 
     bool has_multiple_owners() { return (m_txnid == TXNID_SHARED); }
+public:    
+    void dbug_dump_recursive(FILE *out, bool do_locking);
+    //void dbug_check();
+
+    //void maybe_rotate(concurrent_tree *tree, rcu_disabler *disabler);
 
 private:
     // Owner transaction id.
@@ -230,11 +249,11 @@ private:
 
     // effect: retrieves and possibly rebalances the left child
     // returns: a locked left child, if it exists
-    treenode *lock_and_rebalance_left(void);
+    treenode *lock_and_rebalance_left(rcu_disabler *disabler=nullptr);
 
     // effect: retrieves and possibly rebalances the right child
     // returns: a locked right child, if it exists
-    treenode *lock_and_rebalance_right(void);
+    treenode *lock_and_rebalance_right(rcu_disabler *disabler=nullptr);
 
     // returns: the estimated depth of this subtree
     uint32_t get_depth_estimate(void) const;
@@ -244,11 +263,15 @@ private:
 
     // returns: true iff right subtree depth is sufficiently greater than the left
     bool right_imbalanced(int threshold) const;
+    
+
+    //psergey:
+    bool maybe_left_or_right_imbalanced(int threshold) const;
 
     // effect: performs an O(1) rebalance, which will "heal" an imbalance by at most 1.
     // effect: if the new root is not this node, then this node is unlocked.
     // returns: locked node representing the new root of the rebalanced subtree
-    treenode *maybe_rebalance(void);
+    treenode *maybe_rebalance(rcu_disabler *disabler=nullptr);
 
     // returns: allocated treenode populated with a copy of the range and txnid
     static treenode *alloc(const comparator *cmp, const keyrange &range,

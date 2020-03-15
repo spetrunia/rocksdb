@@ -64,6 +64,13 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 // the locktree source file instead of the header.
 #include "concurrent_tree.h"
 
+#ifndef ROCKSDB_SUPPORT_THREAD_LOCAL
+#define ROCKSDB_SUPPORT_THREAD_LOCAL
+#endif
+#include "rocksdb/perf_context.h"
+#include "monitoring/perf_level_imp.h"
+#include "monitoring/perf_context_imp.h"
+
 namespace toku {
 // A locktree represents the set of row locks owned by all transactions
 // over an open dictionary. Read and write ranges are represented as
@@ -86,6 +93,8 @@ void locktree::create(locktree_manager *mgr, DICTIONARY_ID dict_id,
 
     XCALLOC(m_rangetree);
     m_rangetree->create(&m_cmp);
+    m_rangetree->rcu_cache_usable = NULL; // Init
+    m_rangetree->rcu_caching_enabled= true; // whether to use RCU caching at all
 
     m_sto_txnid = TXNID_NONE;
     m_sto_buffer.create();
@@ -278,11 +287,12 @@ void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
     concurrent_tree::locked_keyrange sto_lkr;
     sto_rangetree.create(&m_cmp);
 
+    sto_rangetree.rcu_caching_enabled= false; // disable RCU use for a private tree
     // insert all of the ranges from the single txnid buffer into a new rangtree
     range_buffer::iterator iter(&m_sto_buffer);
     range_buffer::iterator::record rec;
     while (iter.current(&rec)) {
-        sto_lkr.prepare(&sto_rangetree);
+        sto_lkr.prepare_(&sto_rangetree);
         int r = acquire_lock_consolidated(&sto_lkr, m_sto_txnid,
                                           rec.get_left_key(),
                                           rec.get_right_key(),
@@ -304,7 +314,7 @@ void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
         }
     } migrate_fn;
     migrate_fn.dst_lkr = static_cast<concurrent_tree::locked_keyrange *>(prepared_lkr);
-    sto_lkr.prepare(&sto_rangetree);
+    sto_lkr.prepare_(&sto_rangetree);
     sto_lkr.iterate(&migrate_fn);
     sto_lkr.remove_all();
     sto_lkr.release();
@@ -394,6 +404,18 @@ bool iterate_and_get_overlapping_row_locks2(const concurrent_tree::locked_keyran
     return copy_fn.matching_lock_found;
 }
   
+using rocksdb::PerfLevel;
+using rocksdb::perf_level;
+using rocksdb::perf_context;
+
+void synchronize_rcu_counter_add () {
+  PERF_COUNTER_ADD(rangelock_synchronize_rcu, 1);
+}
+
+void rangelock_rcu_enabled_counter_add() {
+    PERF_COUNTER_ADD(rangelock_rcu_enabled, 1);
+}
+
 // try to acquire a lock and consolidate it with existing locks if possible
 // param: lkr, a prepared locked keyrange
 // return: 0 on success, DB_LOCK_NOTGRANTED if conflicting locks exist.
@@ -402,13 +424,32 @@ int locktree::acquire_lock_consolidated(void *prepared_lkr,
                                         const DBT *left_key, const DBT *right_key,
                                         bool is_write_request,
                                         txnid_set *conflicts) {
-    int r = 0;
     concurrent_tree::locked_keyrange *lkr;
 
     keyrange requested_range;
     requested_range.create(left_key, right_key);
     lkr = static_cast<concurrent_tree::locked_keyrange *>(prepared_lkr); 
     lkr->acquire(requested_range);
+
+    return acquire_lock_consolidated_part2(lkr, txnid,
+                                           left_key, right_key,
+                                           requested_range,
+                                           is_write_request,
+                                           conflicts);
+}
+
+int locktree::acquire_lock_consolidated_part2(
+      void *lkr_as_void,
+      TXNID txnid,
+      const DBT *left_key, const DBT *right_key,
+      keyrange& requested_range,
+      bool is_write_request,
+      txnid_set *conflicts) {
+
+    concurrent_tree::locked_keyrange *lkr;
+    lkr = static_cast<concurrent_tree::locked_keyrange *>(lkr_as_void); 
+
+    int r = 0;
 
     // copy out the set of overlapping row locks.
     GrowableArray<row_lock> overlapping_row_locks;
@@ -477,6 +518,71 @@ int locktree::acquire_lock_consolidated(void *prepared_lkr,
     return r;
 }
 
+/*
+  Disable new shared readers, 
+  Wait until existing shared readers are gone
+*/
+void rcu_disabler::disable_rcu() { 
+  if (!disabled) {
+    disabled= true;
+
+    rcu_assign_pointer(m_tree->rcu_cache_usable, NULL);
+    synchronize_rcu();
+    PERF_COUNTER_ADD(rangelock_synchronize_rcu, 1);
+  }
+}
+
+void rcu_disabler::enable_concurrency() {
+  // enable RCU shared readers:
+  rcu_assign_pointer(m_tree->rcu_cache_usable, (void*)1);
+
+  rangelock_rcu_enabled_counter_add();
+}
+
+
+/*
+  @detail
+    This is called while we've called prepare_no_lock: 
+      - we are in rcu_read_lock section
+      - we are not holding a mutex on the root node.
+    mute
+  @return: true OK
+           false Couldn't acquire
+*/
+bool concurrent_tree::locked_keyrange::acquire_under_rcu(const keyrange &range,
+                                                         bool *read_unlock_done) {
+    treenode *const root = &m_tree->m_root;
+    
+    //PERF_COUNTER_ADD(rangelock_extra_counter1, 1);
+
+    if (root->is_empty() || root->range_overlaps(range)) {
+        //PERF_COUNTER_ADD(rangelock_extra_counter2, 1);
+        return false;
+    }
+    //treenode *subtree;
+    treenode *child = root->find_child_under_rcu(range);
+    if (!child) {
+        //PERF_COUNTER_ADD(rangelock_extra_counter2, 1);
+        return false;
+    }
+
+    if (child->range_overlaps(range)) {
+        //PERF_COUNTER_ADD(rangelock_extra_counter2, 1);
+        child->mutex_unlock();
+        return false;
+    }
+    // if we have a child, it is now locked.
+    rcu_read_unlock();
+    *read_unlock_done= true;
+    
+    //PERF_COUNTER_ADD(rangelock_extra_counter3, 1);
+    m_subtree = child->find_node_with_overlapping_child(range, NULL);
+    //assert(m_subtree != child); // psergey-debug2?
+    m_subtree_locked= true; 
+    m_range = range;
+    return true;
+}
+
 // acquire a lock in the given key range, inclusive. if successful,
 // return 0. otherwise, populate the conflicts txnid_set with the set of
 // transactions that conflict with this request.
@@ -493,18 +599,167 @@ int locktree::acquire_lock(bool is_write_request,
     // prepare is a serialzation point, so we take the opportunity to
     // try the single txnid optimization first.
     concurrent_tree::locked_keyrange lkr;
-    lkr.prepare(m_rangetree);
+    
+    bool used_rcu = false;
+    PERF_COUNTER_ADD(rangelock_acquire, 1);
 
-    bool acquired = sto_try_acquire(&lkr, txnid, left_key, right_key, 
-                                    is_write_request);
-    if (!acquired) {
-        r = acquire_lock_consolidated(&lkr, txnid, left_key, right_key,
-                                      is_write_request, conflicts);
+    if (m_rangetree->rcu_cache_usable) {
+        lkr.prepare_no_lock(m_rangetree);
+        keyrange requested_range;
+        requested_range.create(left_key, right_key);
+        bool acquired=false;
+
+        rcu_read_lock();
+        bool read_unlock_done= false;
+        if (rcu_dereference(m_rangetree->rcu_cache_usable)) {
+            acquired = lkr.acquire_under_rcu(requested_range, &read_unlock_done);
+        }
+        if (!read_unlock_done)  rcu_read_unlock();
+
+        if (acquired) {
+            PERF_COUNTER_ADD(rangelock_acquire_rcu, 1);
+            used_rcu = true;
+            r = acquire_lock_consolidated_part2(&lkr, txnid,
+                                                left_key, right_key,
+                                                requested_range,
+                                                is_write_request,
+                                                conflicts);
+            lkr.release();
+        }
     }
 
-    lkr.release();
+    if (!used_rcu) {
+        // Non-RCU code path
+        lkr.prepare_(m_rangetree);
+
+        bool acquired = sto_try_acquire(&lkr, txnid, left_key, right_key, 
+                                        is_write_request);
+        if (!acquired) {
+            r = acquire_lock_consolidated(&lkr, txnid, left_key, right_key,
+                                          is_write_request, conflicts);
+        }
+
+        lkr.release();
+    }
     return r;
 }
+
+//////////////////////////////////////////////////////////////////////////////
+// psergey: Debug dump for locktree
+//////////////////////////////////////////////////////////////////////////////
+
+static 
+std::string dbug_dump_key(const DBT *key) {
+  static char const hexdigit[] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                  '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+  std::string res;
+  res.reserve(key->size * 2);
+  
+  for (uint i= 0; i < key->size; i++) {
+    char ch= ((char*)key->data)[i];
+    res += hexdigit[((uint8_t)ch) >> 4];
+    res += hexdigit[((uint8_t)ch) & 0x0F];
+  }
+  return res;
+}
+
+static std::string dbug_dump_range(const keyrange *range) {
+    const DBT *left= range->get_left_key();
+    const DBT *right= range->get_right_key();
+    if (left->size == right->size && !memcmp(left->data, right->data, 
+                                             left->size)) {
+        return dbug_dump_key(left);
+    } else {
+        std::string res;
+        res.append(dbug_dump_key(left));
+        res.append(":");
+        res.append(dbug_dump_key(right));
+        return res;
+    }
+}
+
+void treenode::dbug_dump_recursive(FILE *out, bool do_locking) {
+    // this node must be locked at this point
+    treenode *left, *right;
+    if (do_locking) {
+        left  = m_left_child.get_locked();
+        right = m_right_child.get_locked();
+    } else {
+        left  = m_left_child.ptr;
+        right = m_right_child.ptr;
+    }
+    std::string name= dbug_dump_range(&m_range);
+    fprintf(out, "  node%p [label=\"%s\"];\n", this, name.c_str());
+
+    if (left)
+        fprintf(out, "  node%p -> node%p [color=blue, label=\"%d\"];\n", 
+                this, left, m_left_child.depth_est);
+
+    if (right)
+        fprintf(out, "  node%p -> node%p [color=red,  label=\"%d\"];\n", 
+                this, right, m_right_child.depth_est);
+    
+    if (left)
+        left->dbug_dump_recursive(out, do_locking);
+
+    if (right)
+        right->dbug_dump_recursive(out, do_locking);
+
+    if (do_locking) {
+        if (left)
+            left->mutex_unlock();
+        if (right)
+            right->mutex_unlock();
+    }
+}
+
+#if 0
+void treenode::dbug_check() {
+    //psergey-xpl:
+  /*   if (( m_left_child.ptr && !m_right_child.ptr) ||
+        (!m_left_child.ptr &&  m_right_child.ptr))
+      PERF_COUNTER_ADD(rangelock_extra_counter, 1);*/
+}
+#endif
+
+void concurrent_tree::dbug_dump_tree(bool need_lock) {
+
+    static std::atomic<int> count(0);
+    int n= count.fetch_add(1);
+    char filename[256];
+    snprintf(filename, sizeof(filename), "/tmp/tree_%d.dot", n);
+    FILE *out;
+    if (!(out = fopen(filename, "w"))) {
+        fprintf(stderr, "Failed to write %s\n", filename);
+        return;
+    }
+
+    bool enable_rcu = false;
+
+    if (need_lock && rcu_cache_usable) {
+        rcu_assign_pointer(rcu_cache_usable, 0);
+        enable_rcu= true;
+        synchronize_rcu(); 
+    }
+    
+    if (need_lock)
+       m_root.mutex_lock();
+    fprintf(out, "digraph G {\n");
+    m_root.dbug_dump_recursive(out, need_lock);
+    fprintf(out, "}\n");
+
+    if (need_lock)
+        m_root.mutex_unlock();
+    fclose(out);
+    fprintf(stderr, "AAA: wrote tree to %s\n", filename);
+
+    if (enable_rcu)
+        rcu_assign_pointer(rcu_cache_usable, (void*)1);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// psergey: Debug dump for locktree ends
+//////////////////////////////////////////////////////////////////////////////
 
 int locktree::try_acquire_lock(bool is_write_request,
                                TXNID txnid,
@@ -540,8 +795,10 @@ void locktree::dump_locks(void *cdata, dump_callback cb)
     range.create(toku_dbt_negative_infinity(),
                  toku_dbt_positive_infinity());
 
-    lkr.prepare(m_rangetree);
-    lkr.acquire(range);
+    m_rangetree->dbug_dump_tree(true);
+
+    lkr.prepare_(m_rangetree); // in dump_locks, rare
+    lkr.acquire(range);        // in dump_locks, rare
 
     TXNID sto_txn;
     if ((sto_txn = toku_unsafe_fetch(m_sto_txnid)) != TXNID_NONE) {
@@ -588,8 +845,9 @@ void locktree::get_conflicts(bool is_write_request,
     keyrange range;
     range.create(left_key, right_key);
     concurrent_tree::locked_keyrange lkr;
-    lkr.prepare(m_rangetree);
+    lkr.prepare_(m_rangetree);
     lkr.acquire(range);
+    PERF_COUNTER_ADD(rangelock_rare_event, 1);
 
     // copy out the set of overlapping row locks and determine the conflicts
     GrowableArray<row_lock> overlapping_row_locks;
@@ -636,8 +894,35 @@ void locktree::remove_overlapping_locks_for_txnid(TXNID txnid,
 
     // acquire and prepare a locked keyrange over the release range
     concurrent_tree::locked_keyrange lkr;
-    lkr.prepare(m_rangetree);
-    lkr.acquire(release_range);
+
+    bool used_rcu = false;
+    PERF_COUNTER_ADD(rangelock_remove, 1);
+
+
+    if (m_rangetree->rcu_cache_usable) {
+        rcu_read_lock();
+
+        bool read_unlock_done=false;
+
+        if (rcu_dereference(m_rangetree->rcu_cache_usable)) {
+            lkr.prepare_no_lock(m_rangetree);
+            used_rcu = lkr.acquire_under_rcu(release_range, &read_unlock_done);
+        }
+        if (!read_unlock_done)  rcu_read_unlock();
+    }
+    
+    if (used_rcu) {
+        PERF_COUNTER_ADD(rangelock_remove_rcu, 1);
+    } else {
+        // Non-RCU path:
+        lkr.prepare_(m_rangetree);
+        lkr.acquire(release_range);
+    }
+
+    //rcu_disabler d (m_rangetree);
+    //d.disable_rcu();
+    // psergey-debug:
+    //lkr.disable_rcu_if_needed();
 
     // copy out the set of overlapping row locks.
     GrowableArray<row_lock> overlapping_row_locks;
@@ -676,7 +961,8 @@ bool locktree::sto_try_release(TXNID txnid) {
         // check the bit again with a prepared locked keyrange,
         // which protects the optimization bits and rangetree data
         concurrent_tree::locked_keyrange lkr;
-        lkr.prepare(m_rangetree);
+        lkr.prepare_(m_rangetree);
+        PERF_COUNTER_ADD(rangelock_rare_event, 1);
         if (m_sto_txnid != TXNID_NONE) {
             // this txnid better be the single txnid on this locktree,
             // or else we are in big trouble (meaning the logic is broken)
@@ -716,7 +1002,8 @@ void locktree::release_locks(TXNID txnid, const range_buffer *ranges,
             // check the bit again with a prepared locked keyrange,
             // which protects the optimization bits and rangetree data
             concurrent_tree::locked_keyrange lkr;
-            lkr.prepare(m_rangetree);
+            lkr.prepare_(m_rangetree);
+            PERF_COUNTER_ADD(rangelock_rare_event, 1);
             if (m_sto_txnid != TXNID_NONE) {
                 sto_end_early(&lkr);
             }
@@ -827,8 +1114,9 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_esca
     // prepare and acquire a locked keyrange on the entire locktree
     concurrent_tree::locked_keyrange lkr;
     keyrange infinite_range = keyrange::get_infinite_range();
-    lkr.prepare(m_rangetree);
+    lkr.prepare_(m_rangetree);
     lkr.acquire(infinite_range);
+    PERF_COUNTER_ADD(rangelock_rare_event, 1);
 
     // if we're in the single txnid optimization, simply call it off.
     // if you have to run escalation, you probably don't care about

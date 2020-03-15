@@ -129,6 +129,22 @@ PerfContext::PerfContext(const PerfContext& other) {
     *level_to_perf_context = *other.level_to_perf_context;
   }
   per_level_perf_context_enabled = other.per_level_perf_context_enabled;
+
+  rangelock_remove = other.rangelock_remove;
+  rangelock_remove_rcu = other.rangelock_remove_rcu;
+  rangelock_acquire = other.rangelock_acquire;
+  rangelock_acquire_rcu = other.rangelock_acquire_rcu;
+
+  rangelock_synchronize_rcu = other.rangelock_synchronize_rcu;
+  rangelock_acquire_rcu_busy1 = other.rangelock_acquire_rcu_busy1;
+  rangelock_acquire_rcu_retry = other.rangelock_acquire_rcu_retry;
+  
+  rangelock_rcu_enabled = other.rangelock_rcu_enabled;
+  rangelock_rare_event = other.rangelock_rare_event;
+
+  rangelock_extra_counter1= other.rangelock_extra_counter1;
+  rangelock_extra_counter2= other.rangelock_extra_counter2;
+  rangelock_extra_counter3= other.rangelock_extra_counter3;
 #endif
 }
 
@@ -216,6 +232,23 @@ PerfContext::PerfContext(PerfContext&& other) noexcept {
   iter_next_cpu_nanos = other.iter_next_cpu_nanos;
   iter_prev_cpu_nanos = other.iter_prev_cpu_nanos;
   iter_seek_cpu_nanos = other.iter_seek_cpu_nanos;
+
+  rangelock_remove = other.rangelock_remove;
+  rangelock_remove_rcu = other.rangelock_remove_rcu;
+  rangelock_acquire = other.rangelock_acquire;
+  rangelock_acquire_rcu = other.rangelock_acquire_rcu;
+
+  rangelock_synchronize_rcu = other.rangelock_synchronize_rcu;
+  rangelock_acquire_rcu_busy1 = other.rangelock_acquire_rcu_busy1;
+  rangelock_acquire_rcu_retry = other.rangelock_acquire_rcu_retry;
+
+  rangelock_rcu_enabled = other.rangelock_rcu_enabled;
+  rangelock_rare_event = other.rangelock_rare_event;
+
+  rangelock_extra_counter1= other.rangelock_extra_counter1;
+  rangelock_extra_counter2= other.rangelock_extra_counter2;
+  rangelock_extra_counter3= other.rangelock_extra_counter3;
+
   if (per_level_perf_context_enabled && level_to_perf_context != nullptr) {
     ClearPerLevelPerfContext();
   }
@@ -322,6 +355,22 @@ PerfContext& PerfContext::operator=(const PerfContext& other) {
   }
   per_level_perf_context_enabled = other.per_level_perf_context_enabled;
 #endif
+
+  rangelock_remove = other.rangelock_remove;
+  rangelock_remove_rcu = other.rangelock_remove_rcu;
+  rangelock_acquire = other.rangelock_acquire;
+  rangelock_acquire_rcu = other.rangelock_acquire_rcu;
+
+  rangelock_synchronize_rcu = other.rangelock_synchronize_rcu;
+  rangelock_acquire_rcu_busy1 = other.rangelock_acquire_rcu_busy1;
+  rangelock_acquire_rcu_retry = other.rangelock_acquire_rcu_retry;
+
+  rangelock_rcu_enabled = other.rangelock_rcu_enabled;
+  rangelock_rare_event = other.rangelock_rare_event;
+
+  rangelock_extra_counter1= other.rangelock_extra_counter1;
+  rangelock_extra_counter2= other.rangelock_extra_counter2;
+  rangelock_extra_counter3= other.rangelock_extra_counter3;
   return *this;
 }
 
@@ -412,6 +461,22 @@ void PerfContext::Reset() {
       kv.second.Reset();
     }
   }
+
+  rangelock_remove = 0;
+  rangelock_remove_rcu = 0;
+  rangelock_acquire = 0;
+  rangelock_acquire_rcu = 0;
+
+  rangelock_synchronize_rcu = 0;
+  rangelock_acquire_rcu_busy1 = 0;
+  rangelock_acquire_rcu_retry = 0;
+
+  rangelock_rcu_enabled = 0;
+  rangelock_rare_event = 0;
+
+  rangelock_extra_counter1= 0;
+  rangelock_extra_counter2= 0;
+  rangelock_extra_counter3= 0;
 #endif
 }
 

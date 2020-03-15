@@ -225,6 +225,7 @@ public:
     void (*m_start_before_pending_test_callback)(void);
     void (*m_retry_test_callback)(void);
 
+
     friend class lock_request_unit_test;
 };
 // PORT: lock_request is not a POD anymore due to use of toku_external_cond_t

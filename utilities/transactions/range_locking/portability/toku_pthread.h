@@ -45,6 +45,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "toku_portability.h"
 // PORT2: #include "toku_assert.h"
 
+//psergey: TOKU_PTHREAD_DEBUG
+#define TOKU_PTHREAD_DEBUG 1
+
 // TODO: some things moved toku_instrumentation.h, not necessarily the best
 // place
 typedef pthread_attr_t toku_pthread_attr_t;

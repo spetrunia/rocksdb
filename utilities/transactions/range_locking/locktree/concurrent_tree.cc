@@ -70,17 +70,74 @@ uint64_t concurrent_tree::get_insertion_memory_overhead(void) {
     return sizeof(treenode);
 }
 
-void concurrent_tree::locked_keyrange::prepare(concurrent_tree *tree) {
+void concurrent_tree::locked_keyrange::prepare_(concurrent_tree *tree) {
     // the first step in acquiring a locked keyrange is locking the root
     treenode *const root = &tree->m_root;
     m_tree = tree;
     m_subtree = root;
     m_range = keyrange::get_infinite_range();
     root->mutex_lock();
+    exclusive_prepare= true;
+    m_subtree_locked = true;
+    // Do not synchronize the RCU, yet. We will do it when we really need it.
+
+    //TODO: we could also add fallback-to-non-locking-case here.
 }
 
+void concurrent_tree::locked_keyrange::disable_rcu_if_needed() {
+    assert (m_subtree_locked);
+    assert (exclusive_prepare);
+    if (m_subtree == &m_tree->m_root) {
+        rcu_disabler dr(m_tree);
+        dr.disable_rcu();
+    }
+}
+
+
+void concurrent_tree::locked_keyrange::prepare_no_lock(concurrent_tree *tree) {
+    // the first step in acquiring a locked keyrange is locking the root
+    treenode *const root = &tree->m_root;
+    m_tree = tree;
+    m_subtree = root;
+    m_range = keyrange::get_infinite_range();
+    exclusive_prepare= false;
+    m_subtree_locked = false;
+}
+
+
+/*
+   RCU locking policy:
+
+   The following execution orders are allowed:
+   
+   Concurrent traverser:
+     Get RCU read lock
+         get a child mutex
+     Release RCU read lock;
+  
+   Non-concurrent modifier:
+     Get the root mutex;
+     Get an RCU write lock (wait until readers are gone)
+     get child mutex
+     ...
+     eventually enable back the RCU
+
+   (Note1: one may not do "wait until readers are gone" step while holding a
+   child mutex. This creates a deadlock as one of the readers might be trying to
+   acquire the child mutex you're holding.)
+  
+*/
 void concurrent_tree::locked_keyrange::acquire(const keyrange &range) {
     treenode *const root = &m_tree->m_root;
+    assert(exclusive_prepare);
+    assert(m_subtree_locked);
+    
+    // We will disable the RCU before doing any data-modifying operation.
+    rcu_disabler disabler(m_tree);
+    rcu_disabler *disabler_ptr= (m_tree->rcu_caching_enabled)? &disabler : nullptr;
+
+    //psergey-todo:   root rebalance here.
+    //psergey-sunday: root->maybe_rotate(m_tree, disabler_ptr);
 
     treenode *subtree;
     if (root->is_empty() || root->range_overlaps(range)) {
@@ -88,8 +145,12 @@ void concurrent_tree::locked_keyrange::acquire(const keyrange &range) {
     } else {
         // we do not have a precomputed comparison hint, so pass null
         const keyrange::comparison *cmp_hint = nullptr;
-        subtree = root->find_node_with_overlapping_child(range, cmp_hint);
+        subtree = root->find_node_with_overlapping_child(range, cmp_hint, disabler_ptr);
     }
+
+    // psergey-mar14:
+    if (subtree == root && disabler_ptr)
+        disabler_ptr->disable_rcu();
 
     // subtree is locked. it will be unlocked when this is release()'d
     invariant_notnull(subtree);
@@ -104,7 +165,17 @@ void concurrent_tree::locked_keyrange::add_shared_owner(const keyrange &range,
 }
 
 void concurrent_tree::locked_keyrange::release(void) {
-    m_subtree->mutex_unlock();
+    /*
+      If we are releasing the root node, enable the RCU.
+    */
+    if (m_tree->rcu_caching_enabled && m_subtree == &m_tree->m_root &&
+        exclusive_prepare) {
+        assert(m_subtree_locked);
+        rcu_assign_pointer(m_tree->rcu_cache_usable, (void*)1);
+        rangelock_rcu_enabled_counter_add(); // increment rangelock_rcu_enabled
+    }
+    if (m_subtree_locked)
+        m_subtree->mutex_unlock();
 }
 
 template <class F>

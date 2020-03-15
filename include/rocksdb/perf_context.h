@@ -223,6 +223,22 @@ struct PerfContext {
 
   std::map<uint32_t, PerfContextByLevel>* level_to_perf_context = nullptr;
   bool per_level_perf_context_enabled = false;
+
+  uint64_t rangelock_remove;
+  uint64_t rangelock_remove_rcu;
+  uint64_t rangelock_acquire;
+  uint64_t rangelock_acquire_rcu;
+
+  uint64_t rangelock_synchronize_rcu;
+  uint64_t rangelock_acquire_rcu_busy1;
+  uint64_t rangelock_acquire_rcu_retry;
+
+  uint64_t rangelock_rcu_enabled;
+  uint64_t rangelock_rare_event;
+  
+  uint64_t rangelock_extra_counter1;
+  uint64_t rangelock_extra_counter2;
+  uint64_t rangelock_extra_counter3;
 };
 
 // Get Thread-local PerfContext object pointer

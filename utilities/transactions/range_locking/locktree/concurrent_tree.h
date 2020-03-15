@@ -89,13 +89,17 @@ public:
         // There are two valid sequences of calls:
         //  - prepare, acquire, [operations], release
         //  - prepare, [operations],release
-        void prepare(concurrent_tree *tree);
+        void prepare_(concurrent_tree *tree);
+        void prepare_no_lock(concurrent_tree *tree);
 
         // requires: the locked keyrange was prepare()'d
         // effect: acquire a locked keyrange over the given concurrent_tree.
         //         the locked keyrange represents the range of keys overlapped
         //         by the given range
         void acquire(const keyrange &range);
+        bool acquire_under_rcu(const keyrange &range, bool *read_unlock_done);
+
+        void disable_rcu_if_needed();
 
         // effect: releases a locked keyrange and the mutex it holds
         void release(void);
@@ -140,6 +144,9 @@ public:
         // the subtree under which all overlapping ranges exist
         treenode *m_subtree;
 
+        bool exclusive_prepare;
+        bool m_subtree_locked;
+
         friend class concurrent_tree_unit_test;
     };
 
@@ -155,6 +162,18 @@ public:
 
     // returns: the memory overhead of a single insertion into the tree
     static uint64_t get_insertion_memory_overhead(void);
+
+    /*
+    //psergey-rcu:
+      Here, we will have an RCU-based cache.
+    */
+    void* rcu_cache_usable;
+
+    //void disable_rcu();
+    
+    bool rcu_caching_enabled; // Whether to use RCU caching at all
+	
+    void dbug_dump_tree(bool need_lock);
 
 private:
     // the root needs to always exist so there's a lock to grab
