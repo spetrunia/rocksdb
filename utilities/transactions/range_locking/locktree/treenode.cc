@@ -566,20 +566,31 @@ treenode *treenode::maybe_rebalance(rcu_disabler *disabler) {
 
 
 treenode *treenode::lock_and_rebalance_left(rcu_disabler *disabler) {
-    // psergey-last:
+    bool can_rebalance= true;
+
+#if 0
+    // Safe, but not performant
     if (disabler)  {
         if (disabler->disable_rcu())
             PERF_COUNTER_ADD(rangelock_disable_rcu_rebalance, 1);
     }
-#if 0    
+#endif
+
     if (disabler) {
-        if (m_left_child.ptr->maybe_left_or_right_imbalanced())
-     //       disabler->disable_rcu();
+        auto p =m_left_child.ptr;
+        if (p && p->maybe_left_or_right_imbalanced(IMBALANCE_THRESHOLD)) {
+            PERF_COUNTER_ADD(rangelock_disable_rcu_rebalance, 1);
+            disabler->disable_rcu();
+            can_rebalance= true;
+        } else {
+            // not allowed to make changes
+            can_rebalance= false;
+        }
     }
-#endif    
+
     toku_mutex_assert_locked(&m_mutex); // psergey
     treenode *child = m_left_child.get_locked();
-    if (child) {
+    if (child && can_rebalance) {
         treenode *new_root = child->maybe_rebalance(disabler);
         m_left_child.set(new_root);
         child = new_root;
@@ -588,24 +599,30 @@ treenode *treenode::lock_and_rebalance_left(rcu_disabler *disabler) {
 }
 
 treenode *treenode::lock_and_rebalance_right(rcu_disabler *disabler) {
-    // psergey-last:
+    bool can_rebalance= true;
+
+#if 0
+    // Safe, but not performant
     if (disabler) {
         if (disabler->disable_rcu())
             PERF_COUNTER_ADD(rangelock_disable_rcu_rebalance, 1);
     }
-#if 0    
+#endif
+
     if (disabler) {
-        if (m_left_child.ptr->maybe_left_or_right_imbalanced())
-        ///    disabler->disable_rcu();
-        else {
+        auto p =m_right_child.ptr;
+        if (p && p->maybe_left_or_right_imbalanced(IMBALANCE_THRESHOLD)) {
+            PERF_COUNTER_ADD(rangelock_disable_rcu_rebalance, 1);
+            disabler->disable_rcu();
+            can_rebalance= true;
+        } else {
             // not allowed to make changes
+            can_rebalance= false;
         }
-             
     }
-#endif    
     toku_mutex_assert_locked(&m_mutex); // psergey
     treenode *child = m_right_child.get_locked();
-    if (child) {
+    if (child && can_rebalance) {
         treenode *new_root = child->maybe_rebalance(disabler);
         m_right_child.set(new_root);
         child = new_root;
