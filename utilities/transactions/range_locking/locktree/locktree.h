@@ -78,7 +78,19 @@ struct DICTIONARY_ID {
 
 #include "keyrange.h"
 
+#ifndef ROCKSDB_SUPPORT_THREAD_LOCAL
+#define ROCKSDB_SUPPORT_THREAD_LOCAL
+#endif
+#include "rocksdb/perf_context.h"
+#include "monitoring/perf_level_imp.h"
+#include "monitoring/perf_context_imp.h"
+
 namespace toku {
+
+//psergey-new:
+using rocksdb::PerfLevel;
+using rocksdb::perf_level;
+using rocksdb::perf_context;
 
 void synchronize_rcu_counter_add();
 void rangelock_rcu_enabled_counter_add();

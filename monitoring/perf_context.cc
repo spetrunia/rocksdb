@@ -142,9 +142,9 @@ PerfContext::PerfContext(const PerfContext& other) {
   rangelock_rcu_enabled = other.rangelock_rcu_enabled;
   rangelock_rare_event = other.rangelock_rare_event;
 
-  rangelock_extra_counter1= other.rangelock_extra_counter1;
-  rangelock_extra_counter2= other.rangelock_extra_counter2;
-  rangelock_extra_counter3= other.rangelock_extra_counter3;
+  rangelock_disable_rcu_hit_root= other.rangelock_disable_rcu_hit_root;
+  rangelock_disable_rcu_maybe_rebalance= other.rangelock_disable_rcu_maybe_rebalance;
+  rangelock_disable_rcu_rebalance= other.rangelock_disable_rcu_rebalance;
 #endif
 }
 
@@ -245,9 +245,9 @@ PerfContext::PerfContext(PerfContext&& other) noexcept {
   rangelock_rcu_enabled = other.rangelock_rcu_enabled;
   rangelock_rare_event = other.rangelock_rare_event;
 
-  rangelock_extra_counter1= other.rangelock_extra_counter1;
-  rangelock_extra_counter2= other.rangelock_extra_counter2;
-  rangelock_extra_counter3= other.rangelock_extra_counter3;
+  rangelock_disable_rcu_hit_root= other.rangelock_disable_rcu_hit_root;
+  rangelock_disable_rcu_maybe_rebalance= other.rangelock_disable_rcu_maybe_rebalance;
+  rangelock_disable_rcu_rebalance= other.rangelock_disable_rcu_rebalance;
 
   if (per_level_perf_context_enabled && level_to_perf_context != nullptr) {
     ClearPerLevelPerfContext();
@@ -368,9 +368,9 @@ PerfContext& PerfContext::operator=(const PerfContext& other) {
   rangelock_rcu_enabled = other.rangelock_rcu_enabled;
   rangelock_rare_event = other.rangelock_rare_event;
 
-  rangelock_extra_counter1= other.rangelock_extra_counter1;
-  rangelock_extra_counter2= other.rangelock_extra_counter2;
-  rangelock_extra_counter3= other.rangelock_extra_counter3;
+  rangelock_disable_rcu_hit_root= other.rangelock_disable_rcu_hit_root;
+  rangelock_disable_rcu_maybe_rebalance= other.rangelock_disable_rcu_maybe_rebalance;
+  rangelock_disable_rcu_rebalance= other.rangelock_disable_rcu_rebalance;
   return *this;
 }
 
@@ -474,9 +474,9 @@ void PerfContext::Reset() {
   rangelock_rcu_enabled = 0;
   rangelock_rare_event = 0;
 
-  rangelock_extra_counter1= 0;
-  rangelock_extra_counter2= 0;
-  rangelock_extra_counter3= 0;
+  rangelock_disable_rcu_hit_root= 0;
+  rangelock_disable_rcu_maybe_rebalance= 0;
+  rangelock_disable_rcu_rebalance= 0;
 #endif
 }
 

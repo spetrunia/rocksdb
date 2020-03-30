@@ -99,7 +99,7 @@ public:
         void acquire(const keyrange &range);
         bool acquire_under_rcu(const keyrange &range, bool *read_unlock_done);
 
-        void disable_rcu_if_needed();
+        //void disable_rcu_if_needed();
 
         // effect: releases a locked keyrange and the mutex it holds
         void release(void);

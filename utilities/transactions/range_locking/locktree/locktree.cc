@@ -521,15 +521,21 @@ int locktree::acquire_lock_consolidated_part2(
 /*
   Disable new shared readers, 
   Wait until existing shared readers are gone
+
+  @return:
+    true disabled
+    false didn't need to disable
 */
-void rcu_disabler::disable_rcu() { 
+bool rcu_disabler::disable_rcu() { 
   if (!disabled) {
     disabled= true;
 
     rcu_assign_pointer(m_tree->rcu_cache_usable, NULL);
     synchronize_rcu();
     PERF_COUNTER_ADD(rangelock_synchronize_rcu, 1);
+    return true;
   }
+  return false;
 }
 
 void rcu_disabler::enable_concurrency() {

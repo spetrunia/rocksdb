@@ -236,9 +236,10 @@ struct PerfContext {
   uint64_t rangelock_rcu_enabled;
   uint64_t rangelock_rare_event;
   
-  uint64_t rangelock_extra_counter1;
-  uint64_t rangelock_extra_counter2;
-  uint64_t rangelock_extra_counter3;
+  uint64_t rangelock_disable_rcu_hit_root;
+  uint64_t rangelock_disable_rcu_maybe_rebalance;
+  uint64_t rangelock_disable_rcu_rebalance;
+
 };
 
 // Get Thread-local PerfContext object pointer

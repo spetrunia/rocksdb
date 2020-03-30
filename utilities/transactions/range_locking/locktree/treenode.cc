@@ -204,13 +204,19 @@ treenode *treenode::find_node_with_overlapping_child(const keyrange &range,
     // or the child overlaps, then we know this node is the parent we want.
     // otherwise we need to recur into that child.
     if (child == nullptr) {
-        if (disabler)  disabler->disable_rcu();
+        if (disabler)  {
+            if (disabler->disable_rcu())
+                    PERF_COUNTER_ADD(rangelock_disable_rcu_hit_root, 1);
+        }
         return this;
     } else {
         c = range.compare(*m_cmp, child->m_range);
         if (c == keyrange::comparison::EQUALS || c == keyrange::comparison::OVERLAPS) {
             child->mutex_unlock();
-            if (disabler)  disabler->disable_rcu();
+            if (disabler) {
+                if (disabler->disable_rcu())
+                    PERF_COUNTER_ADD(rangelock_disable_rcu_hit_root, 1);
+            }
             return this;
         } else {
             // psergey-todo: if this is the root node, enable the RCU!
@@ -497,7 +503,10 @@ treenode *treenode::maybe_rebalance(rcu_disabler *disabler) {
     treenode *child = nullptr;
 
     if (left_imbalanced(IMBALANCE_THRESHOLD)) {
-        if (disabler)  disabler->disable_rcu();
+        if (disabler)  {
+            if (disabler->disable_rcu())
+                PERF_COUNTER_ADD(rangelock_disable_rcu_maybe_rebalance, 1);
+        }
         child = m_left_child.get_locked();
         if (child->right_imbalanced(0)) {
             treenode *grandchild = child->m_right_child.get_locked();
@@ -515,7 +524,10 @@ treenode *treenode::maybe_rebalance(rcu_disabler *disabler) {
             new_root = child;
         }
     } else if (right_imbalanced(IMBALANCE_THRESHOLD)) {
-        if (disabler)  disabler->disable_rcu();
+        if (disabler) {
+            if (disabler->disable_rcu())
+                PERF_COUNTER_ADD(rangelock_disable_rcu_maybe_rebalance, 1);
+        }
         child = m_right_child.get_locked();
         if (child->left_imbalanced(0)) {
             treenode *grandchild = child->m_left_child.get_locked();
@@ -555,11 +567,14 @@ treenode *treenode::maybe_rebalance(rcu_disabler *disabler) {
 
 treenode *treenode::lock_and_rebalance_left(rcu_disabler *disabler) {
     // psergey-last:
-    if (disabler)  disabler->disable_rcu();
+    if (disabler)  {
+        if (disabler->disable_rcu())
+            PERF_COUNTER_ADD(rangelock_disable_rcu_rebalance, 1);
+    }
 #if 0    
     if (disabler) {
         if (m_left_child.ptr->maybe_left_or_right_imbalanced())
-            disabler->disable_rcu();
+     //       disabler->disable_rcu();
     }
 #endif    
     toku_mutex_assert_locked(&m_mutex); // psergey
@@ -574,11 +589,14 @@ treenode *treenode::lock_and_rebalance_left(rcu_disabler *disabler) {
 
 treenode *treenode::lock_and_rebalance_right(rcu_disabler *disabler) {
     // psergey-last:
-    if (disabler)  disabler->disable_rcu();
+    if (disabler) {
+        if (disabler->disable_rcu())
+            PERF_COUNTER_ADD(rangelock_disable_rcu_rebalance, 1);
+    }
 #if 0    
     if (disabler) {
         if (m_left_child.ptr->maybe_left_or_right_imbalanced())
-            disabler->disable_rcu();
+        ///    disabler->disable_rcu();
         else {
             // not allowed to make changes
         }

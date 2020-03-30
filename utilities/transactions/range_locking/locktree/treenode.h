@@ -73,7 +73,7 @@ public:
     bool disabled;
 
     rcu_disabler(concurrent_tree *c_arg) : m_tree(c_arg), disabled(false) {}
-    void disable_rcu();
+    bool disable_rcu();
     void enable_concurrency();
 };
 

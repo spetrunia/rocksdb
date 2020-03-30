@@ -84,14 +84,14 @@ void concurrent_tree::locked_keyrange::prepare_(concurrent_tree *tree) {
     //TODO: we could also add fallback-to-non-locking-case here.
 }
 
-void concurrent_tree::locked_keyrange::disable_rcu_if_needed() {
-    assert (m_subtree_locked);
-    assert (exclusive_prepare);
-    if (m_subtree == &m_tree->m_root) {
-        rcu_disabler dr(m_tree);
-        dr.disable_rcu();
-    }
-}
+// void concurrent_tree::locked_keyrange::disable_rcu_if_needed() {
+//     assert (m_subtree_locked);
+//     assert (exclusive_prepare);
+//     if (m_subtree == &m_tree->m_root) {
+//         rcu_disabler dr(m_tree);
+//         dr.disable_rcu();
+//     }
+// }
 
 
 void concurrent_tree::locked_keyrange::prepare_no_lock(concurrent_tree *tree) {
@@ -149,8 +149,10 @@ void concurrent_tree::locked_keyrange::acquire(const keyrange &range) {
     }
 
     // psergey-mar14:
-    if (subtree == root && disabler_ptr)
-        disabler_ptr->disable_rcu();
+    if (subtree == root && disabler_ptr) {
+        if (disabler_ptr->disable_rcu())
+            PERF_COUNTER_ADD(rangelock_disable_rcu_hit_root, 1);
+    }
 
     // subtree is locked. it will be unlocked when this is release()'d
     invariant_notnull(subtree);
