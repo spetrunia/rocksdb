@@ -300,6 +300,8 @@ Status TransactionLockMgr::TryLock(PessimisticTransaction* txn,
     return Status::InvalidArgument(msg);
   }
 
+  PERF_COUNTER_ADD(lock_acquire_count, 1);
+
   // Need to lock the mutex for the stripe that this key hashes to
   size_t stripe_num = lock_map->GetStripe(key);
   assert(lock_map->lock_map_stripes_.size() > stripe_num);
@@ -595,6 +597,7 @@ void TransactionLockMgr::UnLockKey(const PessimisticTransaction* txn,
 #ifdef NDEBUG
   (void)env;
 #endif
+  PERF_COUNTER_ADD(lock_release_count, 1);
   TransactionID txn_id = txn->GetID();
 
   auto stripe_iter = stripe->keys.find(key);

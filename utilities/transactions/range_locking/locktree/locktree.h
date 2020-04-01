@@ -67,6 +67,19 @@ struct DICTIONARY_ID {
     uint64_t dictid;
 };
 
+#ifndef ROCKSDB_SUPPORT_THREAD_LOCAL
+#error ROCKSDB_SUPPORT_THREAD_LOCALAAAA
+#endif
+
+#include "rocksdb/perf_context.h"
+#include "monitoring/perf_level_imp.h"
+#include "monitoring/perf_context_imp.h"
+
+//psergey-new:
+using rocksdb::PerfLevel;
+using rocksdb::perf_level;
+using rocksdb::perf_context;
+
 #include <util/omt.h>
 
 #include "txnid_set.h"

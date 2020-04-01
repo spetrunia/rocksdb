@@ -129,6 +129,9 @@ PerfContext::PerfContext(const PerfContext& other) {
     *level_to_perf_context = *other.level_to_perf_context;
   }
   per_level_perf_context_enabled = other.per_level_perf_context_enabled;
+
+  lock_acquire_count = other.lock_acquire_count;
+  lock_release_count = other.lock_release_count;
 #endif
 }
 
@@ -224,6 +227,9 @@ PerfContext::PerfContext(PerfContext&& other) noexcept {
     other.level_to_perf_context = nullptr;
   }
   per_level_perf_context_enabled = other.per_level_perf_context_enabled;
+
+  lock_acquire_count = other.lock_acquire_count;
+  lock_release_count = other.lock_release_count;
 #endif
 }
 
@@ -321,6 +327,9 @@ PerfContext& PerfContext::operator=(const PerfContext& other) {
     *level_to_perf_context = *other.level_to_perf_context;
   }
   per_level_perf_context_enabled = other.per_level_perf_context_enabled;
+
+  lock_acquire_count = other.lock_acquire_count;
+  lock_release_count = other.lock_release_count;
 #endif
   return *this;
 }
@@ -412,6 +421,9 @@ void PerfContext::Reset() {
       kv.second.Reset();
     }
   }
+
+  lock_acquire_count = 0;
+  lock_release_count = 0;
 #endif
 }
 

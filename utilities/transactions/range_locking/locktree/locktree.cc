@@ -488,6 +488,7 @@ int locktree::acquire_lock(bool is_write_request,
 
     // we are only supporting write locks for simplicity
     //invariant(is_write_request);
+    PERF_COUNTER_ADD(lock_acquire_count, 1);
 
     // acquire and prepare a locked keyrange over the requested range.
     // prepare is a serialzation point, so we take the opportunity to
@@ -633,6 +634,8 @@ void locktree::remove_overlapping_locks_for_txnid(TXNID txnid,
                                                   const DBT *right_key) {
     keyrange release_range;
     release_range.create(left_key, right_key);
+
+    PERF_COUNTER_ADD(lock_release_count, 1);
 
     // acquire and prepare a locked keyrange over the release range
     concurrent_tree::locked_keyrange lkr;
