@@ -67,7 +67,7 @@ class BaseLockMgr {
   Status TryLock(PessimisticTransaction* txn, uint32_t column_family_id,
                  const std::string& key, Env* env, bool exclusive) = 0;
   virtual
-  void UnLock(const PessimisticTransaction* txn, const TransactionKeyMap* keys,
+  void UnLock(const PessimisticTransaction* txn, const LockTracker& tracker,
               Env* env) = 0;
   virtual 
   void UnLock(PessimisticTransaction* txn, uint32_t column_family_id,
@@ -113,7 +113,7 @@ class TransactionLockMgr : public BaseLockMgr {
 
   // Unlock a key locked by TryLock().  txn must be the same Transaction that
   // locked this key.
-  void UnLock(const PessimisticTransaction* txn, const TransactionKeyMap* keys,
+  void UnLock(const PessimisticTransaction* txn, const LockTracker& tracker,
               Env* env);
   void UnLock(PessimisticTransaction* txn, uint32_t column_family_id,
               const std::string& key, Env* env);
@@ -217,7 +217,7 @@ class RangeLockMgr :
                       const Endpoint &end_endp,
                       bool exclusive);
   
-  void UnLock(const PessimisticTransaction* txn, const TransactionKeyMap* keys,
+  void UnLock(const PessimisticTransaction* txn, const LockTracker& tracker,
               Env* env) override ;
   // Release all locks the transaction is holding
   void UnLockAll(const PessimisticTransaction* txn, Env* env);

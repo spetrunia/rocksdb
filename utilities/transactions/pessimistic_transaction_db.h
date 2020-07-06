@@ -103,7 +103,7 @@ class PessimisticTransactionDB : public TransactionDB {
                       const Endpoint& start_endp,
                       const Endpoint& end_endp);
 
-  void UnLock(PessimisticTransaction* txn, const TransactionKeyMap* keys,
+  void UnLock(PessimisticTransaction* txn, const LockTracker& keys,
               bool all_keys_hint=false);
   void UnLock(PessimisticTransaction* txn, uint32_t cfh_id,
               const std::string& key);

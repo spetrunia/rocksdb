@@ -12,44 +12,19 @@
 
 #include "db/dbformat.h"
 #include "db/read_callback.h"
-
 #include "rocksdb/db.h"
 #include "rocksdb/slice.h"
 #include "rocksdb/status.h"
 #include "rocksdb/types.h"
+#include "utilities/transactions/lock/lock_tracker.h"
 
 namespace ROCKSDB_NAMESPACE {
 
-struct TransactionKeyMapInfo {
-  // Earliest sequence number that is relevant to this transaction for this key
-  SequenceNumber seq;
-
   // Number of writes done to this key
-  uint32_t num_writes;
 
   // Number of locking reads done to the key. If both numbers of reads and
   // writes go down to zero (happens for RollbackToSavePoint and
   // UndoGetForUpdate) the key will be removed from tracking.
-  uint32_t num_reads;
-
-  bool exclusive;
-
-  explicit TransactionKeyMapInfo(SequenceNumber seq_no)
-      : seq(seq_no), num_writes(0), num_reads(0), exclusive(false) {}
-
-  // Used in PopSavePoint to collapse two savepoints together.
-  void Merge(const TransactionKeyMapInfo& info) {
-    assert(seq <= info.seq);
-    num_reads += info.num_reads;
-    num_writes += info.num_writes;
-    exclusive |= info.exclusive;
-  }
-};
-
-using TransactionKeyMap =
-    std::unordered_map<uint32_t,
-                       std::unordered_map<std::string, TransactionKeyMapInfo>>;
-
 class DBImpl;
 struct SuperVersion;
 class WriteBatchWithIndex;
@@ -74,17 +49,19 @@ class TransactionUtil {
       ReadCallback* snap_checker = nullptr,
       SequenceNumber min_uncommitted = kMaxSequenceNumber);
 
-  // For each key,SequenceNumber pair in the TransactionKeyMap, this function
+  // For each key,SequenceNumber pair tracked by the LockTracker, this function
   // will verify there have been no writes to the key in the db since that
   // sequence number.
   //
   // Returns OK on success, BUSY if there is a conflicting write, or other error
   // status for any unexpected errors.
   //
-  // REQUIRED: this function should only be called on the write thread or if the
+  // REQUIRED:
+  // This function should only be called on the write thread or if the
   // mutex is held.
+  // tracker must support point lock.
   static Status CheckKeysForConflicts(DBImpl* db_impl,
-                                      const TransactionKeyMap& keys,
+                                      const LockTracker& tracker,
                                       bool cache_only);
 
  private:
