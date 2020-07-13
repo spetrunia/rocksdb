@@ -6,6 +6,7 @@
 #pragma once
 
 #include <memory>
+#include <functional>
 
 #include "rocksdb/rocksdb_namespace.h"
 #include "rocksdb/status.h"
@@ -189,5 +190,15 @@ class LockTracker {
 // instead of constructing through concrete implementations' constructor.
 // Caller owns the returned pointer.
 LockTracker* NewLockTracker();
+
+class LockTrackerFactory {
+ public:
+  LockTrackerFactory();
+  std::function<LockTracker*()> CreateLockTracker;
+};
+
+class PointLockTrackerFactory : public LockTrackerFactory
+{
+};
 
 }  // namespace ROCKSDB_NAMESPACE

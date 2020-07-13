@@ -38,7 +38,9 @@ TransactionID PessimisticTransaction::GenTxnID() {
 PessimisticTransaction::PessimisticTransaction(
     TransactionDB* txn_db, const WriteOptions& write_options,
     const TransactionOptions& txn_options, const bool init)
-    : TransactionBaseImpl(txn_db->GetRootDB(), write_options),
+    : TransactionBaseImpl(txn_db->GetRootDB(), write_options,
+                          static_cast_with_check<PessimisticTransactionDB>(txn_db)->
+                          getLockMgr()->getLockTrackerFactory()),
       txn_db_impl_(nullptr),
       expiration_time_(0),
       txn_id_(0),
@@ -51,7 +53,8 @@ PessimisticTransaction::PessimisticTransaction(
   txn_db_impl_ = static_cast_with_check<PessimisticTransactionDB>(txn_db);
   db_impl_ = static_cast_with_check<DBImpl>(db_);
 
-  do_key_tracking_ = txn_db_impl_->ShouldDoKeyTracking();
+  do_key_tracking_ = txn_db_impl_->ShouldDoKeyTracking(); // psergey-merge-todo: remove !
+
   if (init) {
     Initialize(txn_options);
   }

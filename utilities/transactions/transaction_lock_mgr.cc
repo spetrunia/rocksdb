@@ -20,6 +20,7 @@
 #include "util/thread_local.h"
 #include "utilities/transactions/pessimistic_transaction_db.h"
 #include "utilities/transactions/transaction_db_mutex_impl.h"
+#include "utilities/transactions/lock/range_lock_tracker.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -758,48 +759,6 @@ RangeLockMgrHandle* NewRangeLockManager(
   return new RangeLockMgr(use_factory);
 }
 
-/*
-  Storage for locks that are currently held by a transaction.
-
-  Locks are kept in toku::range_buffer because toku::locktree::release_locks()
-  accepts that as an argument.
-
-  Note: the list of locks may differ slighly from the contents of the lock
-  tree, due to concurrency between lock acquisition, lock release, and lock
-  escalation. See MDEV-18227 and RangeLockMgr::UnLockAll for details.
-  This property is currently harmless.
-*/
-class RangeLockList: public PessimisticTransaction::LockStorage {
-public:
-  virtual ~RangeLockList() {
-    for(auto it : buffers_) {
-      it.second->destroy();
-    }
-  }
-
-  RangeLockList() : releasing_locks_(false) {
-  }
-
-  void append(uint32_t cf_id, const DBT *left_key, const DBT *right_key) {
-    MutexLock l(&mutex_);
-    // there's only one thread that calls this function.
-    // the same thread will do lock release.
-    assert(!releasing_locks_);
-    auto it= buffers_.find(cf_id);
-    if (it == buffers_.end()) {
-      // create a new one
-      it= buffers_.emplace(cf_id, std::shared_ptr<toku::range_buffer>(new toku::range_buffer())).first;
-      it->second->create();
-    }
-    it->second->append(left_key, right_key);
-  }
-
-  std::unordered_map<uint32_t, std::shared_ptr<toku::range_buffer>> buffers_;
-
-  // Synchronization. See RangeLockMgr::UnLockAll for details
-  port::Mutex mutex_;
-  bool releasing_locks_;
-};
 
 static const char SUFFIX_INFIMUM= 0x0;
 static const char SUFFIX_SUPREMUM= 0x1;
@@ -919,12 +878,10 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
   }
 
   /* Save the acquired lock in txn->owned_locks */
-  if (!txn->owned_locks)
-  {
-    //create the object
-    txn->owned_locks= std::unique_ptr<RangeLockList>(new RangeLockList);
-  }
-  RangeLockList* range_list= (RangeLockList*)txn->owned_locks.get();
+  // psergey-merge-todo: RocksDB will try to add it to the lock tracker
+  // separately!
+  //
+  RangeLockList* range_list= ((RangeLockTracker*)txn->tracked_locks_.get())->getOrCreateList();
   range_list->append(column_family_id, &start_key_dbt, &end_key_dbt);
 
   return Status::OK();
@@ -989,12 +946,13 @@ void RangeLockMgr::UnLock(const PessimisticTransaction* /*txn*/,
 
 void RangeLockMgr::UnLockAll(const PessimisticTransaction* txn, Env*) {
 
-  // owned_locks may hold nullptr if the transaction has never acquired any
-  // locks.
-  if (txn->owned_locks)
-  {
-    RangeLockList* range_list= (RangeLockList*)txn->owned_locks.get();
+  // tracked_locks_->range_list may hold nullptr if the transaction has never
+  // acquired any locks.
+  RangeLockList* range_list=
+  ((RangeLockTracker*)txn->tracked_locks_.get())->getList();
 
+  if (range_list)
+  {
     {
       MutexLock l(&range_list->mutex_);
       /*
@@ -1129,7 +1087,8 @@ void RangeLockMgr::on_escalate(TXNID txnid, const locktree* lt,
                                const range_buffer &buffer, void *) {
   auto txn= (PessimisticTransaction*)txnid;
 
-  RangeLockList* trx_locks= (RangeLockList*)txn->owned_locks.get();
+  RangeLockList* trx_locks =
+    ((RangeLockTracker*)txn->tracked_locks_.get())->getList();
 
   MutexLock l(&trx_locks->mutex_);
   if (trx_locks->releasing_locks_) {

@@ -21,14 +21,15 @@
 namespace ROCKSDB_NAMESPACE {
 
 TransactionBaseImpl::TransactionBaseImpl(DB* db,
-                                         const WriteOptions& write_options)
+                                         const WriteOptions& write_options,
+                                         const LockTrackerFactory &ltf)
     : db_(db),
       dbimpl_(static_cast_with_check<DBImpl>(db)),
       write_options_(write_options),
       cmp_(GetColumnFamilyUserComparator(db->DefaultColumnFamily())),
       start_time_(db_->GetEnv()->NowMicros()),
       write_batch_(cmp_, 0, true, 0),
-      tracked_locks_(NewLockTracker()),
+      tracked_locks_(ltf.CreateLockTracker()),
       do_key_tracking_(true),
       indexing_enabled_(true) {
   assert(dynamic_cast<DBImpl*>(db_) != nullptr);

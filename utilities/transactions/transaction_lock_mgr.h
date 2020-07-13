@@ -18,6 +18,8 @@
 #include "util/hash_map.h"
 #include "util/thread_local.h"
 #include "utilities/transactions/pessimistic_transaction.h"
+#include "utilities/transactions/lock/lock_tracker.h"
+#include "utilities/transactions/lock/range_lock_tracker.h"
 
 // Range Locking:
 #include <locktree/locktree.h>
@@ -60,6 +62,8 @@ class PessimisticTransactionDB;
 //
 class BaseLockMgr {
  public:
+  virtual LockTrackerFactory getLockTrackerFactory() = 0;
+
   virtual void AddColumnFamily(const ColumnFamilyHandle *cfh) = 0;
   virtual void RemoveColumnFamily(const ColumnFamilyHandle *cfh) = 0;
 
@@ -97,6 +101,10 @@ class TransactionLockMgr : public BaseLockMgr {
   void operator=(const TransactionLockMgr&) = delete;
 
   ~TransactionLockMgr();
+
+  LockTrackerFactory getLockTrackerFactory() override {
+    return LockTrackerFactory();
+  }
 
   // Creates a new LockMap for this column family.  Caller should guarantee
   // that this column family does not already exist.
@@ -198,6 +206,12 @@ class RangeLockMgr :
   public BaseLockMgr, 
   public RangeLockMgrHandle {
  public:
+
+  LockTrackerFactory getLockTrackerFactory() override {
+    LockTrackerFactory ret;
+    ret.CreateLockTracker = []{ return new RangeLockTracker; };
+    return ret;
+  }
   void AddColumnFamily(const ColumnFamilyHandle *cfh) override;
   void RemoveColumnFamily(const ColumnFamilyHandle *cfh) override;
 

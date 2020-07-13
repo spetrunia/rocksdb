@@ -27,16 +27,30 @@ class TransactionLockMgrTest : public testing::Test {
     opt.create_if_missing = true;
     TransactionDBOptions txn_opt;
     txn_opt.transaction_lock_timeout = 0;
-    ASSERT_OK(TransactionDB::Open(opt, txn_opt, db_dir_, &db_));
 
     if (use_range_locking) {
+      /*
+        With Range Locking, we must use the same lock manager object that the
+        TransactionDB is using.
+        Create it here and pass it to the database through lock_mgr_handle.
+      */
       locker_.reset(new RangeLockMgr(mutex_factory_));
-    } else {
-      locker_.reset(
-        new TransactionLockMgr(db_, txn_opt.num_stripes, txn_opt.max_num_locks,
-                               txn_opt.max_num_deadlocks, mutex_factory_));
+      range_lock_mgr = std::dynamic_pointer_cast<RangeLockMgrHandle>(locker_);
+      txn_opt.lock_mgr_handle = range_lock_mgr;
     }
 
+    ASSERT_OK(TransactionDB::Open(opt, txn_opt, db_dir_, &db_));
+
+    if (!use_range_locking) {
+      // If not using range locking, this test creates a separate lock manager
+      // object (right, NOT the one TransactionDB is using!), and runs tests on
+      // that.
+      locker_ = std::shared_ptr<TransactionLockMgr>(
+                    new TransactionLockMgr(db_, txn_opt.num_stripes,
+                                           txn_opt.max_num_locks,
+                                           txn_opt.max_num_deadlocks,
+                                           mutex_factory_));
+    }
   }
 
   void TearDown() override {
@@ -52,7 +66,7 @@ class TransactionLockMgrTest : public testing::Test {
 
  protected:
   Env* env_;
-  std::unique_ptr<BaseLockMgr> locker_;
+  std::shared_ptr<BaseLockMgr> locker_;
   bool use_range_locking;
   std::shared_ptr<rocksdb::RangeLockMgrHandle> range_lock_mgr;
 

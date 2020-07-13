@@ -147,6 +147,8 @@ class PessimisticTransactionDB : public TransactionDB {
   virtual void UpdateCFComparatorMap(const std::vector<ColumnFamilyHandle*>&) {}
   virtual void UpdateCFComparatorMap(ColumnFamilyHandle*) {}
 
+  BaseLockMgr *getLockMgr() const { return lock_mgr_.get(); }
+
   // Key Tracking should be done only with point lock manager.
   bool ShouldDoKeyTracking() const { return range_lock_mgr_ == nullptr; }
  protected:

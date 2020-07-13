@@ -28,7 +28,8 @@ namespace ROCKSDB_NAMESPACE {
 
 class TransactionBaseImpl : public Transaction {
  public:
-  TransactionBaseImpl(DB* db, const WriteOptions& write_options);
+  TransactionBaseImpl(DB* db, const WriteOptions& write_options,
+                      const LockTrackerFactory &ltf);
 
   virtual ~TransactionBaseImpl();
 
@@ -320,11 +321,20 @@ class TransactionBaseImpl : public Transaction {
   // Records writes pending in this transaction
   WriteBatchWithIndex write_batch_;
 
+public:
   // For Pessimistic Transactions this is the set of acquired locks.
   // Optimistic Transactions will keep note the requested locks (not actually
   // locked), and do conflict checking until commit time based on the tracked
   // lock requests.
+
+/*
+  psergey-merge: it's public because there are these users:
+  - RangeLockMgr::TryRangeLock (probably solvable)
+  - RangeLockMgr::UnLockAll (probably solvable)
+  - RangeLockMgr::on_escalate -- HARDER!
+*/
   std::unique_ptr<LockTracker> tracked_locks_;
+protected:
 
   // Stack of the Snapshot saved at each save point. Saved snapshots may be
   // nullptr if there was no snapshot at the time SetSavePoint() was called.
