@@ -79,17 +79,16 @@ class RangeLockTracker : public LockTracker {
   
   // ????? 
   void Track(const RangeLockRequest& ) override {};
-
-  // If this method is not supported, leave it as a no-op and
-  // returns {false, false}.
-  std::pair<bool, bool> Untrack(
+   
+  // a Not-supported dummy implementation.
+  UntrackStatus Untrack(
       const RangeLockRequest& /*lock_request*/) override {
-    return {false, false};
+    return UntrackStatus::NOT_TRACKED;
   }
 
-  std::pair<bool, bool> Untrack(
+  UntrackStatus Untrack(
       const PointLockRequest& /*lock_request*/) override {
-    return {false, false};
+    return UntrackStatus::NOT_TRACKED;
   }
 
   // "If this method is not supported, leave it as a no-op."
@@ -109,7 +108,8 @@ class RangeLockTracker : public LockTracker {
 
   PointLockStatus GetPointLockStatus(ColumnFamilyId column_family_id,
                                      const std::string& key) const override;
-
+  
+  // The return value is only used for tests
   uint64_t GetNumPointLocks() const override { return 0; }
 
   ColumnFamilyIterator* GetColumnFamilyIterator() const override {
@@ -124,10 +124,7 @@ class RangeLockTracker : public LockTracker {
   RangeLockList *getList() { return range_list.get(); }
   RangeLockList *getOrCreateList();
 
-  // TODO: this should keep a pointer to RangeLockList.
-
  private:
-  //TrackedKeys tracked_keys_;
   std::shared_ptr<RangeLockList> range_list;
 };
 

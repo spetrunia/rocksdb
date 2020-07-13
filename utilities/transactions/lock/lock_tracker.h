@@ -44,6 +44,16 @@ struct PointLockStatus {
   SequenceNumber seq = 0;
 };
 
+// Return status when calling LockTracker::Untrack.
+enum class UntrackStatus {
+  // The lock is not tracked at all, so no lock to untrack.
+  NOT_TRACKED,
+  // The lock is untracked but not removed from the tracker.
+  UNTRACKED,
+  // The lock is removed from the tracker.
+  REMOVED,
+};
+
 // Tracks the lock requests.
 // In PessimisticTransaction, it tracks the locks acquired through LockMgr;
 // In OptimisticTransaction, since there is no LockMgr, it tracks the lock
@@ -60,26 +70,15 @@ class LockTracker {
   // Untracks the lock on a key.
   // seq and exclusive in lock_request are not used.
   //
-  // The first returned bool indicates whether the untrack happened, sometimes,
-  // the untrack will not happen, for example, when there is no such tracked
-  // lock.
-  //
-  // The second returned bool will be true only if the first bool is true and
-  // the tracked lock is removed from the tracker completely, sometimes, only
-  // the lock is still tracked because previously the same lock is tracked
-  // multiple times.
-  //
   // If this method is not supported, leave it as a no-op and
-  // returns {false, false}.
-  virtual std::pair<bool, bool> Untrack(
-      const PointLockRequest& /*lock_request*/) = 0;
+  // returns NOT_TRACKED.
+  virtual UntrackStatus Untrack(const PointLockRequest& /*lock_request*/) = 0;
 
   // Counterpart of Track(const PointLockRequest&) for RangeLockRequest.
   virtual void Track(const RangeLockRequest& /*lock_request*/) = 0;
 
   // Counterpart of Untrack(const PointLockRequest&) for RangeLockRequest.
-  virtual std::pair<bool, bool> Untrack(
-      const RangeLockRequest& /*lock_request*/) = 0;
+  virtual UntrackStatus Untrack(const RangeLockRequest& /*lock_request*/) = 0;
 
   // Merges lock requests tracked in the specified tracker into the current
   // tracker.
@@ -159,8 +158,9 @@ class LockTracker {
 
   // Gets an iterator for column families.
   //
-  // If point lock is not supported, returns nullptr.
-  // otherwise, must not be nullptr.
+  // Returned iterator must not be nullptr.
+  // If there is no column family to iterate,
+  // returns an empty non-null iterator.
   // Caller owns the returned pointer.
   virtual ColumnFamilyIterator* GetColumnFamilyIterator() const = 0;
 
@@ -179,8 +179,8 @@ class LockTracker {
 
   // Gets an iterator for keys with tracked point locks in the column family.
   //
-  // If point lock is not supported, returns nullptr;
-  // otherwise, must not be nullptr.
+  // The column family must exist.
+  // Returned iterator must not be nullptr.
   // Caller owns the returned pointer.
   virtual KeyIterator* GetKeyIterator(
       ColumnFamilyId /*column_family_id*/) const = 0;

@@ -9,6 +9,39 @@ namespace ROCKSDB_NAMESPACE {
 
 PointLockTrackerFactory PointLockTrackerFactory::instance;
 
+namespace {
+
+class TrackedKeysColumnFamilyIterator
+    : public LockTracker::ColumnFamilyIterator {
+ public:
+  explicit TrackedKeysColumnFamilyIterator(const TrackedKeys& keys)
+      : tracked_keys_(keys), it_(keys.begin()) {}
+
+  bool HasNext() const override { return it_ != tracked_keys_.end(); }
+
+  ColumnFamilyId Next() override { return (it_++)->first; }
+
+ private:
+  const TrackedKeys& tracked_keys_;
+  TrackedKeys::const_iterator it_;
+};
+
+class TrackedKeysIterator : public LockTracker::KeyIterator {
+ public:
+  TrackedKeysIterator(const TrackedKeys& keys, ColumnFamilyId id)
+      : key_infos_(keys.at(id)), it_(key_infos_.begin()) {}
+
+  bool HasNext() const override { return it_ != key_infos_.end(); }
+
+  const std::string& Next() override { return (it_++)->first; }
+
+ private:
+  const TrackedKeyInfos& key_infos_;
+  TrackedKeyInfos::const_iterator it_;
+};
+
+}  // namespace
+
 void PointLockTracker::Track(const PointLockRequest& r) {
   auto& keys = tracked_keys_[r.column_family_id];
 #ifdef __cpp_lib_unordered_map_try_emplace
@@ -44,16 +77,16 @@ void PointLockTracker::Track(const PointLockRequest& r) {
   it->second.exclusive |= r.exclusive;
 }
 
-std::pair<bool, bool> PointLockTracker::Untrack(const PointLockRequest& r) {
+UntrackStatus PointLockTracker::Untrack(const PointLockRequest& r) {
   auto cf_keys = tracked_keys_.find(r.column_family_id);
   if (cf_keys == tracked_keys_.end()) {
-    return {false, false};
+    return UntrackStatus::NOT_TRACKED;
   }
 
   auto& keys = cf_keys->second;
   auto it = keys.find(r.key);
   if (it == keys.end()) {
-    return {false, false};
+    return UntrackStatus::NOT_TRACKED;
   }
 
   bool untracked = false;
@@ -70,16 +103,22 @@ std::pair<bool, bool> PointLockTracker::Untrack(const PointLockRequest& r) {
     }
   }
 
-  bool erased = false;
+  bool removed = false;
   if (info.num_reads == 0 && info.num_writes == 0) {
     keys.erase(it);
     if (keys.empty()) {
       tracked_keys_.erase(cf_keys);
     }
-    erased = true;
+    removed = true;
   }
 
-  return {untracked, erased};
+  if (removed) {
+    return UntrackStatus::REMOVED;
+  }
+  if (untracked) {
+    return UntrackStatus::UNTRACKED;
+  }
+  return UntrackStatus::NOT_TRACKED;
 }
 
 void PointLockTracker::Merge(const LockTracker& tracker) {
@@ -212,57 +251,14 @@ uint64_t PointLockTracker::GetNumPointLocks() const {
   return num_keys;
 }
 
-class TrackedKeysColumnFamilyIterator
-    : public LockTracker::ColumnFamilyIterator {
- public:
-  TrackedKeysColumnFamilyIterator(const TrackedKeys& keys)
-      : tracked_keys_(keys), it_(keys.begin()) {}
-
-  bool HasNext() const override { return it_ != tracked_keys_.end(); }
-
-  ColumnFamilyId Next() override { return (it_++)->first; }
-
- private:
-  const TrackedKeys& tracked_keys_;
-  TrackedKeys::const_iterator it_;
-};
-
 LockTracker::ColumnFamilyIterator* PointLockTracker::GetColumnFamilyIterator()
     const {
   return new TrackedKeysColumnFamilyIterator(tracked_keys_);
 }
 
-class EmptyKeysIterator : public LockTracker::KeyIterator {
- public:
-  bool HasNext() const override { return false; }
-
-  const std::string& Next() override { return kEmptyStr_; }
-
- private:
-  static const std::string kEmptyStr_;
-};
-
-const std::string EmptyKeysIterator::kEmptyStr_ = "";
-
-class TrackedKeysIterator : public LockTracker::KeyIterator {
- public:
-  TrackedKeysIterator(const TrackedKeys& keys, ColumnFamilyId id)
-      : key_infos_(keys.at(id)), it_(key_infos_.begin()) {}
-
-  bool HasNext() const override { return it_ != key_infos_.end(); }
-
-  const std::string& Next() override { return (it_++)->first; }
-
- private:
-  const TrackedKeyInfos& key_infos_;
-  TrackedKeyInfos::const_iterator it_;
-};
-
 LockTracker::KeyIterator* PointLockTracker::GetKeyIterator(
     ColumnFamilyId column_family_id) const {
-  if (tracked_keys_.find(column_family_id) == tracked_keys_.end()) {
-    return new EmptyKeysIterator();
-  }
+  assert(tracked_keys_.find(column_family_id) != tracked_keys_.end());
   return new TrackedKeysIterator(tracked_keys_, column_family_id);
 }
 
