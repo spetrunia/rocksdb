@@ -29,7 +29,7 @@ namespace ROCKSDB_NAMESPACE {
 class TransactionBaseImpl : public Transaction {
  public:
   TransactionBaseImpl(DB* db, const WriteOptions& write_options,
-                      const LockTrackerFactory &ltf);
+                      const LockTrackerFactory *ltf);
 
   virtual ~TransactionBaseImpl();
 
@@ -281,6 +281,7 @@ class TransactionBaseImpl : public Transaction {
 
   const Comparator* cmp_;
 
+  const LockTrackerFactory *ltf_;
   // Stores that time the txn was constructed, in microseconds.
   uint64_t start_time_;
 
@@ -306,16 +307,19 @@ class TransactionBaseImpl : public Transaction {
 
     SavePoint(std::shared_ptr<const Snapshot> snapshot, bool snapshot_needed,
               std::shared_ptr<TransactionNotifier> snapshot_notifier,
-              uint64_t num_puts, uint64_t num_deletes, uint64_t num_merges)
+              uint64_t num_puts, uint64_t num_deletes, uint64_t num_merges,
+              const LockTrackerFactory *ltf)
         : snapshot_(snapshot),
           snapshot_needed_(snapshot_needed),
           snapshot_notifier_(snapshot_notifier),
           num_puts_(num_puts),
           num_deletes_(num_deletes),
           num_merges_(num_merges),
-          new_locks_(NewLockTracker()) {}
+          new_locks_(ltf->Create()) {}
 
-    SavePoint() : new_locks_(NewLockTracker()) {}
+    SavePoint(const LockTrackerFactory *ltf) : new_locks_(ltf->Create()) {}
+
+    SavePoint(const SavePoint &s) {new_locks_ = s.new_locks_;}
   };
 
   // Records writes pending in this transaction

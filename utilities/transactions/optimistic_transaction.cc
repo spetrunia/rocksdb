@@ -20,6 +20,7 @@
 #include "utilities/transactions/transaction_util.h"
 #include "utilities/transactions/optimistic_transaction.h"
 #include "utilities/transactions/optimistic_transaction_db_impl.h"
+#include "utilities/transactions/lock/point_lock_tracker.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -29,7 +30,7 @@ OptimisticTransaction::OptimisticTransaction(
     OptimisticTransactionDB* txn_db, const WriteOptions& write_options,
     const OptimisticTransactionOptions& txn_options)
     : TransactionBaseImpl(txn_db->GetBaseDB(), write_options,
-                          PointLockTrackerFactory()),
+                          &PointLockTrackerFactory::instance),
       txn_db_(txn_db) {
   Initialize(txn_options);
 }

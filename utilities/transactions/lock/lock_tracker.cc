@@ -9,16 +9,4 @@
 
 namespace ROCKSDB_NAMESPACE {
 
-// psergey-todo: to make sure this is not created with a mis-matching lock
-// manager, disallow and only allow explicit creator.
-
-LockTracker* NewLockTracker() {
-  // TODO: determine the lock tracker implementation based on configuration.
-  return new PointLockTracker();
-}
-
-LockTrackerFactory::LockTrackerFactory() {
-  CreateLockTracker = []() { return new PointLockTracker; };
-}
-
 }  // namespace ROCKSDB_NAMESPACE

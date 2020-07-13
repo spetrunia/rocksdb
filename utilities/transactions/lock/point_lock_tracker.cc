@@ -7,6 +7,8 @@
 
 namespace ROCKSDB_NAMESPACE {
 
+PointLockTrackerFactory PointLockTrackerFactory::instance;
+
 void PointLockTracker::Track(const PointLockRequest& r) {
   auto& keys = tracked_keys_[r.column_family_id];
 #ifdef __cpp_lib_unordered_map_try_emplace

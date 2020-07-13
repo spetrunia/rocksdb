@@ -137,7 +137,7 @@ WriteCommittedTxn::WriteCommittedTxn(TransactionDB* txn_db,
     : PessimisticTransaction(txn_db, write_options, txn_options){};
 
 Status PessimisticTransaction::CommitBatch(WriteBatch* batch) {
-  std::unique_ptr<LockTracker> keys_to_unlock(NewLockTracker());
+  std::unique_ptr<LockTracker> keys_to_unlock(ltf_->Create());
   Status s = LockBatch(batch, keys_to_unlock.get());
 
   if (!s.ok()) {

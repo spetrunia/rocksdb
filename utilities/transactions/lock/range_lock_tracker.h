@@ -131,4 +131,12 @@ class RangeLockTracker : public LockTracker {
   std::shared_ptr<RangeLockList> range_list;
 };
 
+class RangeLockTrackerFactory : public LockTrackerFactory
+{
+public:
+  LockTracker* Create() const override  { return new RangeLockTracker; }
+  
+  static RangeLockTrackerFactory instance;
+};
+
 }  // namespace ROCKSDB_NAMESPACE

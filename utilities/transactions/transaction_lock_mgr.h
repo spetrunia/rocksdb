@@ -19,6 +19,7 @@
 #include "util/thread_local.h"
 #include "utilities/transactions/pessimistic_transaction.h"
 #include "utilities/transactions/lock/lock_tracker.h"
+#include "utilities/transactions/lock/point_lock_tracker.h"
 #include "utilities/transactions/lock/range_lock_tracker.h"
 
 // Range Locking:
@@ -62,7 +63,7 @@ class PessimisticTransactionDB;
 //
 class BaseLockMgr {
  public:
-  virtual LockTrackerFactory getLockTrackerFactory() = 0;
+  virtual LockTrackerFactory *getLockTrackerFactory() = 0;
 
   virtual void AddColumnFamily(const ColumnFamilyHandle *cfh) = 0;
   virtual void RemoveColumnFamily(const ColumnFamilyHandle *cfh) = 0;
@@ -102,8 +103,8 @@ class TransactionLockMgr : public BaseLockMgr {
 
   ~TransactionLockMgr();
 
-  LockTrackerFactory getLockTrackerFactory() override {
-    return LockTrackerFactory();
+  LockTrackerFactory* getLockTrackerFactory() override {
+    return &PointLockTrackerFactory::instance;
   }
 
   // Creates a new LockMap for this column family.  Caller should guarantee
@@ -131,6 +132,7 @@ class TransactionLockMgr : public BaseLockMgr {
   void Resize(uint32_t) override;
 
  private:
+
   PessimisticTransactionDB* txn_db_impl_;
 
   // Default number of lock map stripes per column family
@@ -207,10 +209,8 @@ class RangeLockMgr :
   public RangeLockMgrHandle {
  public:
 
-  LockTrackerFactory getLockTrackerFactory() override {
-    LockTrackerFactory ret;
-    ret.CreateLockTracker = []{ return new RangeLockTracker; };
-    return ret;
+  LockTrackerFactory* getLockTrackerFactory() override {
+    return &RangeLockTrackerFactory::instance;
   }
   void AddColumnFamily(const ColumnFamilyHandle *cfh) override;
   void RemoveColumnFamily(const ColumnFamilyHandle *cfh) override;

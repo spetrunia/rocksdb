@@ -186,19 +186,17 @@ class LockTracker {
       ColumnFamilyId /*column_family_id*/) const = 0;
 };
 
-// LockTracker should always be constructed through this factory method,
-// instead of constructing through concrete implementations' constructor.
-// Caller owns the returned pointer.
-LockTracker* NewLockTracker();
 
+// An interface to LockTracker factory. LockTracker objects should only be 
+// created through this interface's Create() method.
+// 
+// One can get the factory pointer e.g. from Lock Manager which overloads
+// BaseLockMgr::getLockTrackerFactory().
 class LockTrackerFactory {
  public:
-  LockTrackerFactory();
-  std::function<LockTracker*()> CreateLockTracker;
-};
-
-class PointLockTrackerFactory : public LockTrackerFactory
-{
+  // Caller owns the returned pointer.
+  virtual LockTracker* Create() const = 0;
+  virtual ~LockTrackerFactory(){}
 };
 
 }  // namespace ROCKSDB_NAMESPACE
