@@ -565,13 +565,17 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
   bool lock_upgrade = previously_locked && exclusive && !status.exclusive;
   // If we are not doing key tracking, just get the lock and return (this
   // also assumes locks are "idempotent")
+  // TODO: psergey: can this execution path be joined with the code below it?
   if (!do_key_tracking_) {
     s = txn_db_impl_->TryLock(this, cfh_id, key_str, exclusive);
-    if (s.ok() && !assume_tracked && snapshot_ != nullptr) {
-      // Perform validation
+    if (s.ok()) {
       SequenceNumber tracked_at_seq = kMaxSequenceNumber;
-      SetSnapshotIfNeeded();
-      s = ValidateSnapshot(column_family, key, &tracked_at_seq);
+      if (!assume_tracked && snapshot_ != nullptr) {
+        // Perform validation
+        SetSnapshotIfNeeded();
+        s = ValidateSnapshot(column_family, key, &tracked_at_seq);
+      }
+      TrackKey(cfh_id, key_str, tracked_at_seq, read_only, exclusive);
     }
     return s;
   }
