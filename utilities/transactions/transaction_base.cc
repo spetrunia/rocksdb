@@ -31,7 +31,6 @@ TransactionBaseImpl::TransactionBaseImpl(DB* db,
       start_time_(db_->GetEnv()->NowMicros()),
       write_batch_(cmp_, 0, true, 0),
       tracked_locks_(ltf->Create()),
-      do_key_tracking_(true),
       indexing_enabled_(true) {
   assert(dynamic_cast<DBImpl*>(db_) != nullptr);
   log_number_ = 0;
@@ -147,6 +146,7 @@ Status TransactionBaseImpl::RollbackToSavePoint() {
     Status s = write_batch_.RollbackToSavePoint();
     assert(s.ok());
 
+    // Rollback any keys that were tracked since the last savepoint
     tracked_locks_->Subtract(*save_point.new_locks_);
 
     save_points_->pop();

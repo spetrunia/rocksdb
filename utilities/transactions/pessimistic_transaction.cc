@@ -53,8 +53,6 @@ PessimisticTransaction::PessimisticTransaction(
   txn_db_impl_ = static_cast_with_check<PessimisticTransactionDB>(txn_db);
   db_impl_ = static_cast_with_check<DBImpl>(db_);
 
-  do_key_tracking_ = txn_db_impl_->ShouldDoKeyTracking(); // psergey-merge-todo: remove !
-
   if (init) {
     Initialize(txn_options);
   }
@@ -560,26 +558,19 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
   }
   uint32_t cfh_id = GetColumnFamilyID(column_family);
   std::string key_str = key.ToString();
-  PointLockStatus status = tracked_locks_->GetPointLockStatus(cfh_id, key_str);
-  bool previously_locked = status.locked;
-  bool lock_upgrade = previously_locked && exclusive && !status.exclusive;
-  // If we are not doing key tracking, just get the lock and return (this
-  // also assumes locks are "idempotent")
-  // TODO: psergey: can this execution path be joined with the code below it?
-  if (!do_key_tracking_) {
-    s = txn_db_impl_->TryLock(this, cfh_id, key_str, exclusive);
-    if (s.ok()) {
-      SequenceNumber tracked_at_seq = kMaxSequenceNumber;
-      if (!assume_tracked && snapshot_ != nullptr) {
-        // Perform validation
-        SetSnapshotIfNeeded();
-        s = ValidateSnapshot(column_family, key, &tracked_at_seq);
-      }
-      TrackKey(cfh_id, key_str, tracked_at_seq, read_only, exclusive);
-    }
-    return s;
+  //
+  PointLockStatus status;
+  bool previously_locked;
+  bool lock_upgrade;
+  if (tracked_locks_->IsPointLockSupported()) {
+    status = tracked_locks_->GetPointLockStatus(cfh_id, key_str);
+    previously_locked = status.locked;
+    lock_upgrade = previously_locked && exclusive && !status.exclusive;
+  } else {
+    previously_locked = false;
+    status.locked = false;
+    lock_upgrade = false;
   }
-
 
   // Lock this key if this transactions hasn't already locked it or we require
   // an upgrade.
@@ -598,7 +589,7 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
   SequenceNumber tracked_at_seq =
       status.locked ? status.seq : kMaxSequenceNumber;
   if (!do_validate || snapshot_ == nullptr) {
-    if (assume_tracked && !previously_locked) {
+    if (assume_tracked && !previously_locked && tracked_locks_->IsPointLockSupported()) {
       s = Status::InvalidArgument(
           "assume_tracked is set but it is not tracked yet");
     }

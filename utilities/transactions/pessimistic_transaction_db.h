@@ -149,8 +149,6 @@ class PessimisticTransactionDB : public TransactionDB {
 
   BaseLockMgr *getLockMgr() const { return lock_mgr_.get(); }
 
-  // Key Tracking should be done only with point lock manager.
-  bool ShouldDoKeyTracking() const { return range_lock_mgr_ == nullptr; }
  protected:
   DBImpl* db_impl_;
   std::shared_ptr<Logger> info_log_;
