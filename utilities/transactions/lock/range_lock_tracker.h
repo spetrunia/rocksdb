@@ -81,6 +81,9 @@ class RangeLockTracker : public LockTracker {
   void Track(const PointLockRequest& ) override;
   void Track(const RangeLockRequest& ) override ;
    
+  bool IsPointLockSupported() const override { return false; }
+  bool IsRangeLockSupported() const override { return true; }
+
   // a Not-supported dummy implementation.
   UntrackStatus Untrack(
       const RangeLockRequest& /*lock_request*/) override {

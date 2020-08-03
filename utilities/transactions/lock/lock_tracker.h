@@ -69,6 +69,12 @@ class LockTracker {
  public:
   virtual ~LockTracker() {}
 
+  // Whether supports locking a specific key.
+  virtual bool IsPointLockSupported() const = 0;
+
+  // Whether supports locking a range of keys.
+  virtual bool IsRangeLockSupported() const = 0;
+
   // Tracks the acquirement of a lock on key.
   //
   // If this method is not supported, leave it as a no-op.
