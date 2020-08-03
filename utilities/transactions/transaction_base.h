@@ -333,7 +333,7 @@ public:
 
 /*
   psergey-merge: it's public because there are these users:
-  - RangeLockMgr::TryRangeLock (probably solvable)
+  - RangeLockMgr::TryRangeLock (probably solvable) DONE
   - RangeLockMgr::UnLockAll (probably solvable)
   - RangeLockMgr::on_escalate -- HARDER!
 */

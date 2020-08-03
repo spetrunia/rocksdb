@@ -6,11 +6,11 @@
 #pragma once
 
 #include <memory>
-#include <functional>
 
 #include "rocksdb/rocksdb_namespace.h"
 #include "rocksdb/status.h"
 #include "rocksdb/types.h"
+#include "rocksdb/utilities/transaction_db.h" // for Endpoint
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -32,7 +32,14 @@ struct PointLockRequest {
 
 // Request for locking a range of keys.
 struct RangeLockRequest {
-  // TODO
+  // The id of the key's column family.
+  ColumnFamilyId column_family_id;
+
+  // The range to be locked
+  Endpoint start_endp;
+  Endpoint end_endp;
+
+  // TODO : more members?
 };
 
 struct PointLockStatus {

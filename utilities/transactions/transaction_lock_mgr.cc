@@ -763,7 +763,6 @@ RangeLockMgrHandle* NewRangeLockManager(
 static const char SUFFIX_INFIMUM= 0x0;
 static const char SUFFIX_SUPREMUM= 0x1;
 
-static
 void serialize_endpoint(const Endpoint &endp, std::string *buf) {
   buf->push_back(endp.inf_suffix ? SUFFIX_SUPREMUM : SUFFIX_INFIMUM);
   buf->append(endp.slice.data(), endp.slice.size());
@@ -877,12 +876,10 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
       return Status::Busy(Status::SubCode::kLockLimit);
   }
 
-  /* Save the acquired lock in txn->owned_locks */
-  // psergey-merge-todo: RocksDB will try to add it to the lock tracker
-  // separately!
-  //
-  RangeLockList* range_list= ((RangeLockTracker*)txn->tracked_locks_.get())->getOrCreateList();
-  range_list->append(column_family_id, &start_key_dbt, &end_key_dbt);
+  // Don't: save the acquired lock in txn->owned_locks.
+  // It is now responsibility of RangeLockMgr
+  //  RangeLockList* range_list= ((RangeLockTracker*)txn->tracked_locks_.get())->getOrCreateList();
+  //  range_list->append(column_family_id, &start_key_dbt, &end_key_dbt);
 
   return Status::OK();
 }
@@ -999,6 +996,7 @@ void RangeLockMgr::UnLockAll(const PessimisticTransaction* txn, Env*) {
         toku::lock_request::retry_all_lock_requests(lt, nullptr);
       }
     }
+    range_list->clear();
     range_list->releasing_locks_= false;
   }
 }
@@ -1162,7 +1160,7 @@ void RangeLockMgr::AddColumnFamily(const ColumnFamilyHandle *cfh) {
     ltree_map_.emplace(column_family_id, ltree);
   } else {
     // column_family already exists in lock map
-    assert(false);
+    //assert(false);
   }
 }
 

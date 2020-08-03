@@ -35,9 +35,14 @@ class RangeLockList;
 class RangeLockList /*: public PessimisticTransaction::Lock--Storage */ {
 public:
   virtual ~RangeLockList() {
+    clear();
+  }
+
+  void clear() {
     for(auto it : buffers_) {
       it.second->destroy();
     }
+    buffers_.clear();
   }
 
   RangeLockList() : releasing_locks_(false) {
@@ -73,12 +78,8 @@ class RangeLockTracker : public LockTracker {
   RangeLockTracker(const RangeLockTracker&) = delete;
   RangeLockTracker& operator=(const RangeLockTracker&) = delete;
 
-  // "If this method is not supported, leave it as a no-op."
-  // (If one does this, then GetForUpdate will not be able to read the locks!)
   void Track(const PointLockRequest& ) override;
-  
-  // ????? 
-  void Track(const RangeLockRequest& ) override {};
+  void Track(const RangeLockRequest& ) override ;
    
   // a Not-supported dummy implementation.
   UntrackStatus Untrack(
@@ -97,7 +98,6 @@ class RangeLockTracker : public LockTracker {
   // "If this method is not supported, leave it as a no-op."
   void Subtract(const LockTracker& ) override {}
   
-  // TODO!!!
   void Clear() override;
 
   // "If this method is not supported, returns nullptr."

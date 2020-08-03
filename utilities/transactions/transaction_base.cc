@@ -147,7 +147,6 @@ Status TransactionBaseImpl::RollbackToSavePoint() {
     Status s = write_batch_.RollbackToSavePoint();
     assert(s.ok());
 
-    // psergey-merge-todo: if (do_key_tracking_) {
     tracked_locks_->Subtract(*save_point.new_locks_);
 
     save_points_->pop();

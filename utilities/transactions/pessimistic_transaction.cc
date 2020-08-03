@@ -451,7 +451,6 @@ Status PessimisticTransaction::RollbackToSavePoint() {
     return Status::InvalidArgument("Transaction is beyond state for rollback.");
   }
 
-  //psergey-merge-todo: this used do_key_tracking_
   if (save_points_ != nullptr && !save_points_->empty()) {
     // Unlock any keys locked since last transaction
     auto& save_point_tracker = *save_points_->top().new_locks_;
@@ -654,11 +653,13 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
       TrackKey(cfh_id, key_str, tracked_at_seq, read_only, exclusive);
     } else {
 #ifndef NDEBUG
+#if 0 // psergey-todo: this will fail with range lock manager!
       PointLockStatus lock_status =
           tracked_locks_->GetPointLockStatus(cfh_id, key_str);
       assert(lock_status.locked);
       assert(lock_status.seq <= tracked_at_seq);
       assert(lock_status.exclusive == exclusive);
+#endif
 #endif
     }
   }
@@ -674,7 +675,13 @@ PessimisticTransaction::GetRangeLock(ColumnFamilyHandle* column_family,
       column_family ? column_family : db_impl_->DefaultColumnFamily();
   uint32_t cfh_id= GetColumnFamilyID(cfh);
 
-  return txn_db_impl_->TryRangeLock(this, cfh_id, start_endp, end_endp);
+  Status s= txn_db_impl_->TryRangeLock(this, cfh_id, start_endp, end_endp);
+
+  if (s.ok()) {
+    RangeLockRequest req {cfh_id, start_endp, end_endp};
+    tracked_locks_->Track(req);
+  }
+  return s;
 }
 
 // Return OK() if this key has not been modified more recently than the
