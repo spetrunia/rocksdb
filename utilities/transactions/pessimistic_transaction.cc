@@ -567,7 +567,8 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
     previously_locked = status.locked;
     lock_upgrade = previously_locked && exclusive && !status.exclusive;
   } else {
-    previously_locked = false;
+    // If the record is tracked, we can assume it was locked, too.
+    previously_locked = assume_tracked;
     status.locked = false;
     lock_upgrade = false;
   }
@@ -589,7 +590,8 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
   SequenceNumber tracked_at_seq =
       status.locked ? status.seq : kMaxSequenceNumber;
   if (!do_validate || snapshot_ == nullptr) {
-    if (assume_tracked && !previously_locked && tracked_locks_->IsPointLockSupported()) {
+    if (assume_tracked && !previously_locked &&
+        tracked_locks_->IsPointLockSupported()) {
       s = Status::InvalidArgument(
           "assume_tracked is set but it is not tracked yet");
     }
@@ -646,13 +648,13 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
       TrackKey(cfh_id, key_str, tracked_at_seq, read_only, exclusive);
     } else {
 #ifndef NDEBUG
-#if 0 // psergey-todo: this will fail with range lock manager!
-      PointLockStatus lock_status =
-          tracked_locks_->GetPointLockStatus(cfh_id, key_str);
-      assert(lock_status.locked);
-      assert(lock_status.seq <= tracked_at_seq);
-      assert(lock_status.exclusive == exclusive);
-#endif
+      if (tracked_locks_->IsPointLockSupported()) {
+        PointLockStatus lock_status =
+            tracked_locks_->GetPointLockStatus(cfh_id, key_str);
+        assert(lock_status.locked);
+        assert(lock_status.seq <= tracked_at_seq);
+        assert(lock_status.exclusive == exclusive);
+      }
 #endif
     }
   }

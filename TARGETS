@@ -1407,7 +1407,9 @@ ROCKS_TESTS = [
     [
         "range_locking_test",
         "utilities/transactions/range_locking_test.cc",
-        "serial",
+        "parallel",
+        [],
+        [],
     ],
     [
         "rate_limiter_test",

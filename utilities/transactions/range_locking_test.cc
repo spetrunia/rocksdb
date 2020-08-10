@@ -17,16 +17,6 @@
 #include "rocksdb/perf_context.h"
 #include "rocksdb/utilities/transaction.h"
 #include "rocksdb/utilities/transaction_db.h"
-#include "table/mock_table.h"
-// #include "test_util/fault_injection_test_env.h"
-#include "util/random.h"
-#include "util/string_util.h"
-#include "test_util/sync_point.h"
-#include "test_util/testharness.h"
-#include "test_util/testutil.h"
-#include "test_util/transaction_test_util.h"
-#include "utilities/merge_operators.h"
-#include "utilities/merge_operators/string_append/stringappend.h"
 #include "utilities/transactions/pessimistic_transaction_db.h"
 
 #include "port/port.h"
@@ -85,40 +75,36 @@ TEST_F(RangeLockingTest, BasicRangeLocking) {
   TransactionOptions txn_options;
   std::string value;
   ReadOptions read_options;
+  auto cf = db->DefaultColumnFamily();
 
   Transaction* txn0 = db->BeginTransaction(write_options, txn_options);
   Transaction* txn1 = db->BeginTransaction(write_options, txn_options);
 
   // Get a range lock
   {
-    auto s= txn0->GetRangeLock(db->DefaultColumnFamily(), 
-                               Endpoint("a"), Endpoint("c"));
+    auto s= txn0->GetRangeLock(cf, Endpoint("a"), Endpoint("c"));
     ASSERT_EQ(s, Status::OK());
   }
  
 
   // Check that range Lock inhibits an overlapping range lock
   {
-    auto s= txn1->GetRangeLock(db->DefaultColumnFamily(), 
-                                Endpoint("b"), Endpoint("z"));
+    auto s= txn1->GetRangeLock(cf, Endpoint("b"), Endpoint("z"));
     ASSERT_TRUE(s.IsTimedOut());
   }
 
   // Check that range Lock inhibits an overlapping point lock
   {
-    auto s= txn1->GetForUpdate(read_options, db->DefaultColumnFamily(),
-                               Slice("b"), &value);
+    auto s= txn1->GetForUpdate(read_options, cf, Slice("b"), &value);
     ASSERT_TRUE(s.IsTimedOut());
   }
 
   // Get a point lock, check that it inhibits range locks
   {
-    auto s= txn0->Put(db->DefaultColumnFamily(),
-                      Slice("d"), Slice("value"));
+    auto s= txn0->Put(cf, Slice("n"), Slice("value"));
     ASSERT_EQ(s, Status::OK());
 
-    auto s2= txn1->GetRangeLock(db->DefaultColumnFamily(),
-                                Endpoint("c"), Endpoint("e"));
+    auto s2= txn1->GetRangeLock(cf, Endpoint("m"), Endpoint("p"));
     ASSERT_TRUE(s2.IsTimedOut());
   }
 
@@ -127,6 +113,36 @@ TEST_F(RangeLockingTest, BasicRangeLocking) {
 
   delete txn0;
   delete txn1;
+}
+
+TEST_F(RangeLockingTest, MyRocksLikeUpdate) {
+  WriteOptions write_options;
+  TransactionOptions txn_options;
+  Transaction* txn0 = db->BeginTransaction(write_options, txn_options);
+  auto cf= db->DefaultColumnFamily();
+  Status s;
+
+  // Get a range lock for the range we are about to update
+  s = txn0->GetRangeLock(cf, Endpoint("a"), Endpoint("c"));
+  ASSERT_EQ(s, Status::OK());
+
+  bool try_range_lock_called = false;
+
+  ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->SetCallBack(
+      "RangeLockMgr::TryRangeLock:enter",
+      [&](void* /*arg*/) { try_range_lock_called = true; });
+  ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->EnableProcessing();
+
+  // For performance reasons, the following must NOT call lock_mgr->TryLock():
+  // We verify that by checking the value of try_range_lock_called.
+  s = txn0->Put(cf, Slice("b"), Slice("value"), /*assume_tracked=*/true);
+  ASSERT_EQ(s, Status::OK());
+
+  ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->DisableProcessing();
+  ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->ClearAllCallBacks();
+  ASSERT_EQ(try_range_lock_called, false);
+
+  txn0->Rollback();
 }
 
 TEST_F(RangeLockingTest, SnapshotValidation) {

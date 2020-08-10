@@ -779,6 +779,7 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
   request.create(mutex_factory_);
   DBT start_key_dbt, end_key_dbt;
 
+  TEST_SYNC_POINT("RangeLockMgr::TryRangeLock:enter");
   std::string start_key;
   std::string end_key;
   serialize_endpoint(start_endp, &start_key);
