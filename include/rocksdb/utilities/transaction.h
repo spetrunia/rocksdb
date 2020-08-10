@@ -24,7 +24,6 @@ using TransactionName = std::string;
 
 using TransactionID = uint64_t;
 
-
 /*
   class Endpoint allows to define prefix ranges.
 
@@ -90,14 +89,14 @@ class Endpoint {
   */
   bool inf_suffix;
 
-  Endpoint(const Slice &slice_arg, bool inf_suffix_arg=false) :
-    slice(slice_arg), inf_suffix(inf_suffix_arg) {}
+  Endpoint(const Slice& slice_arg, bool inf_suffix_arg = false)
+      : slice(slice_arg), inf_suffix(inf_suffix_arg) {}
 
-  Endpoint(const char* s, bool inf_suffix_arg=false) :
-    slice(s), inf_suffix(inf_suffix_arg) {}
+  Endpoint(const char* s, bool inf_suffix_arg = false)
+      : slice(s), inf_suffix(inf_suffix_arg) {}
 
-  Endpoint(const char* s, size_t size, bool inf_suffix_arg=false) :
-    slice(s, size), inf_suffix(inf_suffix_arg) {}
+  Endpoint(const char* s, size_t size, bool inf_suffix_arg = false)
+      : slice(s, size), inf_suffix(inf_suffix_arg) {}
 
   Endpoint() : inf_suffix(false) {}
 };
@@ -356,8 +355,8 @@ class Transaction {
   }
 
   // Get a range lock on [start_endpoint; end_endpoint].
-  virtual Status GetRangeLock(ColumnFamilyHandle*,
-                              const Endpoint&, const Endpoint&) {
+  virtual Status GetRangeLock(ColumnFamilyHandle*, const Endpoint&,
+                              const Endpoint&) {
     return Status::NotSupported();
   }
 

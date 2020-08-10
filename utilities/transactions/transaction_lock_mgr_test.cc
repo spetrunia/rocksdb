@@ -47,11 +47,9 @@ class TransactionLockMgrTest : public testing::Test {
       // If not using range locking, this test creates a separate lock manager
       // object (right, NOT the one TransactionDB is using!), and runs tests on
       // that.
-      locker_ = std::shared_ptr<TransactionLockMgr>(
-                    new TransactionLockMgr(db_, txn_opt.num_stripes,
-                                           txn_opt.max_num_locks,
-                                           txn_opt.max_num_deadlocks,
-                                           mutex_factory_));
+      locker_ = std::shared_ptr<TransactionLockMgr>(new TransactionLockMgr(
+          db_, txn_opt.num_stripes, txn_opt.max_num_locks,
+          txn_opt.max_num_deadlocks, mutex_factory_));
     }
   }
 
@@ -74,7 +72,7 @@ class TransactionLockMgrTest : public testing::Test {
 
   // With Range Locking, functions like GetLockStatusData() return range
   // endpoints, not the keys themselves. This function extracts the key.
-  std::string key_value(const std::string &s) {
+  std::string key_value(const std::string& s) {
     if (use_range_locking)
       return s.substr(1);
     else
@@ -89,16 +87,14 @@ class TransactionLockMgrTest : public testing::Test {
 
 class AnyLockManagerTest : public TransactionLockMgrTest,
                            public testing::WithParamInterface<bool> {
-public:
-  AnyLockManagerTest() {
-    use_range_locking = GetParam();
-  }
+ public:
+  AnyLockManagerTest() { use_range_locking = GetParam(); }
 };
-
 
 class MockColumnFamily : public ColumnFamilyHandle {
   uint32_t id_;
   std::string name;
+
  public:
   ~MockColumnFamily() {}
   MockColumnFamily(uint32_t id_arg) : id_(id_arg) {}
@@ -106,7 +102,7 @@ class MockColumnFamily : public ColumnFamilyHandle {
 
   const std::string& GetName() const override { return name; }
 
-  Status GetDescriptor(ColumnFamilyDescriptor* ) override {
+  Status GetDescriptor(ColumnFamilyDescriptor*) override {
     assert(0);
     return Status::NotSupported();
   }
@@ -131,7 +127,6 @@ TEST_F(TransactionLockMgrTest, LockNonExistingColumnFamily) {
   ASSERT_STREQ(s.getState(), "Column family id not found: 1024");
   delete txn;
 }
-
 
 TEST_P(AnyLockManagerTest, LockStatus) {
   locker_->AddColumnFamily(&cf_1024);
@@ -299,11 +294,10 @@ port::Thread BlockUntilWaitingTxn(bool use_range_locking,
                                   std::function<void()> f) {
   std::atomic<bool> reached(false);
   const char* sync_point_name =
-   use_range_locking? "RangeLockMgr::TryRangeLock:WaitingTxn":
-                      "TransactionLockMgr::AcquireWithTimeout:WaitingTxn";
+      use_range_locking ? "RangeLockMgr::TryRangeLock:WaitingTxn"
+                        : "TransactionLockMgr::AcquireWithTimeout:WaitingTxn";
   ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->SetCallBack(
-      sync_point_name,
-      [&](void* /*arg*/) { reached.store(true); });
+      sync_point_name, [&](void* /*arg*/) { reached.store(true); });
   ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->EnableProcessing();
 
   port::Thread t(f);
@@ -330,7 +324,6 @@ TEST_P(AnyLockManagerTest, SharedLocks) {
   // Cleanup
   locker_->UnLock(txn1, 1, "k", env_);
   locker_->UnLock(txn2, 1, "k", env_);
-
 }
 
 TEST_P(AnyLockManagerTest, Deadlock) {
@@ -384,7 +377,6 @@ TEST_P(AnyLockManagerTest, Deadlock) {
   delete txn2;
   delete txn1;
 }
-
 
 // This test doesn't work with Range Lock Manager, because Range Lock Manager
 // doesn't support deadlock_detect_depth.

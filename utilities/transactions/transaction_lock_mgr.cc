@@ -18,9 +18,9 @@
 #include "util/cast_util.h"
 #include "util/hash.h"
 #include "util/thread_local.h"
+#include "utilities/transactions/lock/range_lock_tracker.h"
 #include "utilities/transactions/pessimistic_transaction_db.h"
 #include "utilities/transactions/transaction_db_mutex_impl.h"
-#include "utilities/transactions/lock/range_lock_tracker.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -178,8 +178,8 @@ size_t LockMap::GetStripe(const std::string& key) const {
   return fastrange64(GetSliceNPHash64(key), num_stripes_);
 }
 
-void TransactionLockMgr::AddColumnFamily(const ColumnFamilyHandle *cfh) {
-  uint32_t column_family_id= cfh->GetID();
+void TransactionLockMgr::AddColumnFamily(const ColumnFamilyHandle* cfh) {
+  uint32_t column_family_id = cfh->GetID();
   InstrumentedMutexLock l(&lock_map_mutex_);
 
   if (lock_maps_.find(column_family_id) == lock_maps_.end()) {
@@ -191,8 +191,8 @@ void TransactionLockMgr::AddColumnFamily(const ColumnFamilyHandle *cfh) {
   }
 }
 
-void TransactionLockMgr::RemoveColumnFamily(const ColumnFamilyHandle *cfh) {
-  uint32_t column_family_id= cfh->GetID();
+void TransactionLockMgr::RemoveColumnFamily(const ColumnFamilyHandle* cfh) {
+  uint32_t column_family_id = cfh->GetID();
   // Remove lock_map for this column family.  Since the lock map is stored
   // as a shared ptr, concurrent transactions can still keep using it
   // until they release their references to it.
@@ -742,13 +742,12 @@ void TransactionLockMgr::Resize(uint32_t target_size) {
   dlock_buffer_.Resize(target_size);
 }
 
-
 /////////////////////////////////////////////////////////////////////////////
 // RangeLockMgr - a lock manager that supports range locking
 /////////////////////////////////////////////////////////////////////////////
 
 RangeLockMgrHandle* NewRangeLockManager(
-  std::shared_ptr<TransactionDBMutexFactory> mutex_factory) {
+    std::shared_ptr<TransactionDBMutexFactory> mutex_factory) {
   std::shared_ptr<TransactionDBMutexFactory> use_factory;
 
   if (mutex_factory)
@@ -759,22 +758,19 @@ RangeLockMgrHandle* NewRangeLockManager(
   return new RangeLockMgr(use_factory);
 }
 
+static const char SUFFIX_INFIMUM = 0x0;
+static const char SUFFIX_SUPREMUM = 0x1;
 
-static const char SUFFIX_INFIMUM= 0x0;
-static const char SUFFIX_SUPREMUM= 0x1;
-
-void serialize_endpoint(const Endpoint &endp, std::string *buf) {
+void serialize_endpoint(const Endpoint& endp, std::string* buf) {
   buf->push_back(endp.inf_suffix ? SUFFIX_SUPREMUM : SUFFIX_INFIMUM);
   buf->append(endp.slice.data(), endp.slice.size());
 }
 
-
 // Get a range lock on [start_key; end_key] range
 Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
                                   uint32_t column_family_id,
-                                  const Endpoint &start_endp,
-                                  const Endpoint &end_endp,
-                                  bool exclusive) {
+                                  const Endpoint& start_endp,
+                                  const Endpoint& end_endp, bool exclusive) {
   toku::lock_request request;
   request.create(mutex_factory_);
   DBT start_key_dbt, end_key_dbt;
@@ -794,24 +790,22 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
   // locktree::kill_waiter call. Do we need this anymore?
   TransactionID wait_txn_id = txn->GetID();
 
-  auto lt= get_locktree_by_cfid(column_family_id);
+  auto lt = get_locktree_by_cfid(column_family_id);
 
   request.set(lt, (TXNID)txn, &start_key_dbt, &end_key_dbt,
-              exclusive? toku::lock_request::WRITE: toku::lock_request::READ,
-              false /* not a big txn */,
-              (void*)wait_txn_id);
-  
-  uint64_t killed_time_msec = 0; // TODO: what should this have?
+              exclusive ? toku::lock_request::WRITE : toku::lock_request::READ,
+              false /* not a big txn */, (void*)wait_txn_id);
+
+  uint64_t killed_time_msec = 0;  // TODO: what should this have?
   uint64_t wait_time_msec = txn->GetLockTimeout();
   // convert microseconds to milliseconds
   if (wait_time_msec != (uint64_t)-1)
     wait_time_msec = (wait_time_msec + 500) / 1000;
 
   std::vector<DeadlockInfo> di_path;
-  request.m_deadlock_cb = [&] (TXNID txnid, bool is_exclusive,
-                               std::string key) {
-      di_path.push_back({((PessimisticTransaction*)txnid)->GetID(),
-                         column_family_id, is_exclusive, key});
+  request.m_deadlock_cb = [&](TXNID txnid, bool is_exclusive, std::string key) {
+    di_path.push_back({((PessimisticTransaction*)txnid)->GetID(),
+                       column_family_id, is_exclusive, key});
   };
 
   request.start();
@@ -827,80 +821,77 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
   struct st_wait_info {
     PessimisticTransaction* txn;
     uint32_t column_family_id;
-    std::string *key_ptr;
+    std::string* key_ptr;
     autovector<TransactionID> wait_ids;
-    bool done= false;
+    bool done = false;
 
-    static void lock_wait_callback(void *cdata, TXNID /*waiter*/, TXNID waitee) {
+    static void lock_wait_callback(void* cdata, TXNID /*waiter*/,
+                                   TXNID waitee) {
       TEST_SYNC_POINT("RangeLockMgr::TryRangeLock:WaitingTxn");
-      auto self= (struct st_wait_info*)cdata;
+      auto self = (struct st_wait_info*)cdata;
       // we know that the waiter is self->txn->GetID() (TODO: assert?)
-      if (!self->done)
-      {
+      if (!self->done) {
         self->wait_ids.push_back(waitee);
         self->txn->SetWaitingTxn(self->wait_ids, self->column_family_id,
                                  self->key_ptr);
-        self->done= true;
+        self->done = true;
       }
     }
   } wait_info;
 
-  wait_info.txn= txn;
-  wait_info.column_family_id= column_family_id;
-  wait_info.key_ptr= &key_str;
-  wait_info.done= false;
+  wait_info.txn = txn;
+  wait_info.column_family_id = column_family_id;
+  wait_info.key_ptr = &key_str;
+  wait_info.done = false;
 
-  const int r = request.wait(wait_time_msec, killed_time_msec,
-                             nullptr, // killed_callback
-                             st_wait_info::lock_wait_callback,
-                             (void*)&wait_info);
+  const int r =
+      request.wait(wait_time_msec, killed_time_msec,
+                   nullptr,  // killed_callback
+                   st_wait_info::lock_wait_callback, (void*)&wait_info);
 
   // Inform the txn that we are no longer waiting:
   txn->ClearWaitingTxn();
 
   request.destroy();
   switch (r) {
-  case 0:
-    break; /* fall through */
-  case DB_LOCK_NOTGRANTED:
-    return Status::TimedOut(Status::SubCode::kLockTimeout);
-  case TOKUDB_OUT_OF_LOCKS:
-    return Status::Busy(Status::SubCode::kLockLimit);
-  case DB_LOCK_DEADLOCK:
-  {
-    std::reverse(di_path.begin(), di_path.end());
-    dlock_buffer_.AddNewPath(DeadlockPath(di_path, request.get_start_time()));
-    return Status::Busy(Status::SubCode::kDeadlock);
-  }
-  default:
+    case 0:
+      break; /* fall through */
+    case DB_LOCK_NOTGRANTED:
+      return Status::TimedOut(Status::SubCode::kLockTimeout);
+    case TOKUDB_OUT_OF_LOCKS:
+      return Status::Busy(Status::SubCode::kLockLimit);
+    case DB_LOCK_DEADLOCK: {
+      std::reverse(di_path.begin(), di_path.end());
+      dlock_buffer_.AddNewPath(DeadlockPath(di_path, request.get_start_time()));
+      return Status::Busy(Status::SubCode::kDeadlock);
+    }
+    default:
       assert(0);
       return Status::Busy(Status::SubCode::kLockLimit);
   }
 
   // Don't: save the acquired lock in txn->owned_locks.
   // It is now responsibility of RangeLockMgr
-  //  RangeLockList* range_list= ((RangeLockTracker*)txn->tracked_locks_.get())->getOrCreateList();
+  //  RangeLockList* range_list=
+  //  ((RangeLockTracker*)txn->tracked_locks_.get())->getOrCreateList();
   //  range_list->append(column_family_id, &start_key_dbt, &end_key_dbt);
 
   return Status::OK();
 }
 
-
 // Get a singlepoint lock
 //   (currently it is the same as getting a range lock)
 Status RangeLockMgr::TryLock(PessimisticTransaction* txn,
-                             uint32_t column_family_id,
-                             const std::string& key, Env*,
-                             bool exclusive) {
+                             uint32_t column_family_id, const std::string& key,
+                             Env*, bool exclusive) {
   Endpoint endp(key.data(), key.size(), false);
   return TryRangeLock(txn, column_family_id, endp, endp, exclusive);
 }
 
-static void 
-range_lock_mgr_release_lock_int(toku::locktree *lt,
-                                const PessimisticTransaction* txn,
-                                uint32_t /*column_family_id*/,
-                                const std::string& key) {
+static void range_lock_mgr_release_lock_int(toku::locktree* lt,
+                                            const PessimisticTransaction* txn,
+                                            uint32_t /*column_family_id*/,
+                                            const std::string& key) {
   DBT key_dbt;
   Endpoint endp(key.data(), key.size(), false);
   std::string endp_image;
@@ -915,11 +906,12 @@ range_lock_mgr_release_lock_int(toku::locktree *lt,
 }
 
 void RangeLockMgr::UnLock(PessimisticTransaction* txn,
-                          uint32_t column_family_id,
-                          const std::string& key, Env*) {
-  auto lt= get_locktree_by_cfid(column_family_id);
+                          uint32_t column_family_id, const std::string& key,
+                          Env*) {
+  auto lt = get_locktree_by_cfid(column_family_id);
   range_lock_mgr_release_lock_int(lt, txn, column_family_id, key);
-  toku::lock_request::retry_all_lock_requests(lt, nullptr /* lock_wait_needed_callback */);
+  toku::lock_request::retry_all_lock_requests(
+      lt, nullptr /* lock_wait_needed_callback */);
 }
 
 void RangeLockMgr::UnLock(const PessimisticTransaction* /*txn*/,
@@ -943,14 +935,12 @@ void RangeLockMgr::UnLock(const PessimisticTransaction* /*txn*/,
 }
 
 void RangeLockMgr::UnLockAll(const PessimisticTransaction* txn, Env*) {
-
   // tracked_locks_->range_list may hold nullptr if the transaction has never
   // acquired any locks.
-  RangeLockList* range_list=
-  ((RangeLockTracker*)txn->tracked_locks_.get())->getList();
+  RangeLockList* range_list =
+      ((RangeLockTracker*)txn->tracked_locks_.get())->getList();
 
-  if (range_list)
-  {
+  if (range_list) {
     {
       MutexLock l(&range_list->mutex_);
       /*
@@ -979,16 +969,16 @@ void RangeLockMgr::UnLockAll(const PessimisticTransaction* txn, Env*) {
           (the code in this function doesnt do that as there's only one thread
            that releases transaction's locks)
       */
-      range_list->releasing_locks_= true;
+      range_list->releasing_locks_ = true;
     }
 
     // Don't try to call release_locks() if the buffer is empty! if we are
-    //  not holding any locks, the lock tree might be in the STO-mode with 
-    //  another transaction, and our attempt to release an empty set of locks 
+    //  not holding any locks, the lock tree might be in the STO-mode with
+    //  another transaction, and our attempt to release an empty set of locks
     //  will cause an assertion failure.
-    for (auto it: range_list->buffers_) {
+    for (auto it : range_list->buffers_) {
       if (it.second->get_num_ranges()) {
-        toku::locktree *lt = get_locktree_by_cfid(it.first);
+        toku::locktree* lt = get_locktree_by_cfid(it.first);
         lt->release_locks((TXNID)txn, it.second.get(), true);
 
         it.second->destroy();
@@ -998,52 +988,42 @@ void RangeLockMgr::UnLockAll(const PessimisticTransaction* txn, Env*) {
       }
     }
     range_list->clear();
-    range_list->releasing_locks_= false;
+    range_list->releasing_locks_ = false;
   }
 }
 
+int RangeLockMgr::compare_dbt_endpoints(__toku_db*, void* arg, const DBT* a_key,
+                                        const DBT* b_key) {
+  const char* a = (const char*)a_key->data;
+  const char* b = (const char*)b_key->data;
 
-int RangeLockMgr::compare_dbt_endpoints(__toku_db*, void *arg,
-                                        const DBT *a_key,
-                                        const DBT *b_key) {
-  const char *a= (const char*)a_key->data;
-  const char *b= (const char*)b_key->data;
+  size_t a_len = a_key->size;
+  size_t b_len = b_key->size;
 
-  size_t a_len= a_key->size;
-  size_t b_len= b_key->size;
-
-  size_t min_len= std::min(a_len, b_len);
+  size_t min_len = std::min(a_len, b_len);
 
   // Compare the values. The first byte encodes the endpoint type, its value
   // is either SUFFIX_INFIMUM or SUFFIX_SUPREMUM.
-  Comparator *cmp = (Comparator*) arg;
-  int res= cmp->Compare(Slice(a+1, min_len-1), Slice(b+1, min_len-1));
-  if (!res)
-  {
-    if (b_len > min_len)
-    {
+  Comparator* cmp = (Comparator*)arg;
+  int res = cmp->Compare(Slice(a + 1, min_len - 1), Slice(b + 1, min_len - 1));
+  if (!res) {
+    if (b_len > min_len) {
       // a is shorter;
       if (a[0] == SUFFIX_INFIMUM)
-        return  -1; //"a is smaller"
-      else
-      {
+        return -1;  //"a is smaller"
+      else {
         // a is considered padded with 0xFF:FF:FF:FF...
-        return 1; // "a" is bigger
+        return 1;  // "a" is bigger
       }
-    }
-    else if (a_len > min_len)
-    {
+    } else if (a_len > min_len) {
       // the opposite of the above: b is shorter.
       if (b[0] == SUFFIX_INFIMUM)
-        return  1; //"b is smaller"
-      else
-      {
+        return 1;  //"b is smaller"
+      else {
         // b is considered padded with 0xFF:FF:FF:FF...
-        return -1; // "b" is bigger
+        return -1;  // "b" is bigger
       }
-    }
-    else
-    {
+    } else {
       // the lengths are equal (and the key values, too)
       if (a[0] < b[0])
         return -1;
@@ -1052,15 +1032,15 @@ int RangeLockMgr::compare_dbt_endpoints(__toku_db*, void *arg,
       else
         return 0;
     }
-  }
-  else
+  } else
     return res;
 }
 
-RangeLockMgr::RangeLockMgr(std::shared_ptr<TransactionDBMutexFactory> mutex_factory) :
-  mutex_factory_(mutex_factory),
-  ltree_lookup_cache_(new ThreadLocalPtr(nullptr)),
-  dlock_buffer_(10) {
+RangeLockMgr::RangeLockMgr(
+    std::shared_ptr<TransactionDBMutexFactory> mutex_factory)
+    : mutex_factory_(mutex_factory),
+      ltree_lookup_cache_(new ThreadLocalPtr(nullptr)),
+      dlock_buffer_(10) {
   ltm_.create(on_create, on_destroy, on_escalate, NULL, mutex_factory_);
 }
 
@@ -1076,18 +1056,19 @@ std::vector<DeadlockPath> RangeLockMgr::GetDeadlockInfoBuffer() {
   @brief  Lock Escalation Callback function
 
   @param txnid   Transaction whose locks got escalated
-  @param lt      Lock Tree where escalation is happening (currently there is only one)
+  @param lt      Lock Tree where escalation is happening (currently there is
+  only one)
   @param buffer  Escalation result: list of locks that this transaction now
                  owns in this lock tree.
   @param void*   Callback context
 */
 
 void RangeLockMgr::on_escalate(TXNID txnid, const locktree* lt,
-                               const range_buffer &buffer, void *) {
-  auto txn= (PessimisticTransaction*)txnid;
+                               const range_buffer& buffer, void*) {
+  auto txn = (PessimisticTransaction*)txnid;
 
   RangeLockList* trx_locks =
-    ((RangeLockTracker*)txn->tracked_locks_.get())->getList();
+      ((RangeLockTracker*)txn->tracked_locks_.get())->getList();
 
   MutexLock l(&trx_locks->mutex_);
   if (trx_locks->releasing_locks_) {
@@ -1099,11 +1080,12 @@ void RangeLockMgr::on_escalate(TXNID txnid, const locktree* lt,
     return;
   }
 
-  // TODO: are we tracking this mem: lt->get_manager()->note_mem_released(trx_locks->ranges.buffer->total_memory_size());
+  // TODO: are we tracking this mem:
+  // lt->get_manager()->note_mem_released(trx_locks->ranges.buffer->total_memory_size());
 
   uint32_t cf_id = (uint32_t)lt->get_dict_id().dictid;
 
-  auto it= trx_locks->buffers_.find(cf_id);
+  auto it = trx_locks->buffers_.find(cf_id);
   it->second->destroy();
   it->second->create();
 
@@ -1113,13 +1095,13 @@ void RangeLockMgr::on_escalate(TXNID txnid, const locktree* lt,
     it->second->append(rec.get_left_key(), rec.get_right_key());
     iter.next();
   }
-  // TODO: same as above: lt->get_manager()->note_mem_used(ranges.buffer->total_memory_size());
+  // TODO: same as above:
+  // lt->get_manager()->note_mem_used(ranges.buffer->total_memory_size());
 }
 
-
 RangeLockMgr::~RangeLockMgr() {
-   //TODO: at this point, synchronization is not needed, right?
-  for (auto it: ltree_map_) {
+  // TODO: at this point, synchronization is not needed, right?
+  for (auto it : ltree_map_) {
     ltm_.release_lt(it.second);
   }
   ltm_.destroy();
@@ -1129,44 +1111,44 @@ RangeLockMgrHandle::Counters RangeLockMgr::GetStatus() {
   LTM_STATUS_S ltm_status_test;
   ltm_.get_status(&ltm_status_test);
   Counters res;
-  
+
   // Searching status variable by its string name is how Toku's unit tests
   // do it (why didn't they make LTM_ESCALATION_COUNT constant visible?)
   // lookup keyname in status
   for (int i = 0; i < LTM_STATUS_S::LTM_STATUS_NUM_ROWS; i++) {
-      TOKU_ENGINE_STATUS_ROW status = &ltm_status_test.status[i];
-      if (strcmp(status->keyname, "LTM_ESCALATION_COUNT") == 0) {
-          res.escalation_count = status->value.num;
-          continue;
-      }
-      if (strcmp(status->keyname, "LTM_SIZE_CURRENT") == 0) {
-          res.current_lock_memory = status->value.num;
-      }
+    TOKU_ENGINE_STATUS_ROW status = &ltm_status_test.status[i];
+    if (strcmp(status->keyname, "LTM_ESCALATION_COUNT") == 0) {
+      res.escalation_count = status->value.num;
+      continue;
+    }
+    if (strcmp(status->keyname, "LTM_SIZE_CURRENT") == 0) {
+      res.current_lock_memory = status->value.num;
+    }
   }
   return res;
 }
 
-void RangeLockMgr::AddColumnFamily(const ColumnFamilyHandle *cfh) {
-  uint32_t column_family_id= cfh->GetID();
+void RangeLockMgr::AddColumnFamily(const ColumnFamilyHandle* cfh) {
+  uint32_t column_family_id = cfh->GetID();
 
   InstrumentedMutexLock l(&ltree_map_mutex_);
   if (ltree_map_.find(column_family_id) == ltree_map_.end()) {
-    DICTIONARY_ID dict_id = { .dictid = column_family_id };
+    DICTIONARY_ID dict_id = {.dictid = column_family_id};
     toku::comparator cmp;
     cmp.create(compare_dbt_endpoints, (void*)cfh->GetComparator(), NULL);
-    toku::locktree *ltree= ltm_.get_lt(dict_id, cmp,
-                                       /* on_create_extra*/nullptr);
+    toku::locktree* ltree = ltm_.get_lt(dict_id, cmp,
+                                        /* on_create_extra*/ nullptr);
     // This is ok to because get_lt has copied the comparator:
     cmp.destroy();
     ltree_map_.emplace(column_family_id, ltree);
   } else {
     // column_family already exists in lock map
-    //assert(false);
+    // assert(false);
   }
 }
 
-void RangeLockMgr::RemoveColumnFamily(const ColumnFamilyHandle *cfh) {
-  uint32_t column_family_id= cfh->GetID();
+void RangeLockMgr::RemoveColumnFamily(const ColumnFamilyHandle* cfh) {
+  uint32_t column_family_id = cfh->GetID();
   // Remove lock_map for this column family.  Since the lock map is stored
   // as a shared ptr, concurrent transactions can still keep using it
   // until they release their references to it.
@@ -1185,7 +1167,7 @@ void RangeLockMgr::RemoveColumnFamily(const ColumnFamilyHandle *cfh) {
     ltree_map_.erase(lock_maps_iter);
   }  // lock_map_mutex_
 
-  //TODO: why do we delete first and clear the caches second? Shouldn't this be
+  // TODO: why do we delete first and clear the caches second? Shouldn't this be
   // done in the reverse order? (if we do it in the reverse order, how will we
   // prevent somebody from re-populating the cache?)
 
@@ -1195,8 +1177,7 @@ void RangeLockMgr::RemoveColumnFamily(const ColumnFamilyHandle *cfh) {
   ltree_lookup_cache_->Scrape(&local_caches, nullptr);
 }
 
-toku::locktree *RangeLockMgr::get_locktree_by_cfid(uint32_t column_family_id) {
-
+toku::locktree* RangeLockMgr::get_locktree_by_cfid(uint32_t column_family_id) {
   // First check thread-local cache
   if (ltree_lookup_cache_->Get() == nullptr) {
     ltree_lookup_cache_->Reset(new LockTreeMap());
@@ -1218,7 +1199,7 @@ toku::locktree *RangeLockMgr::get_locktree_by_cfid(uint32_t column_family_id) {
     return nullptr;
   } else {
     // Found lock map.  Store in thread-local cache and return.
-    //std::shared_ptr<LockMap>& lock_map = lock_map_iter->second;
+    // std::shared_ptr<LockMap>& lock_map = lock_map_iter->second;
     ltree_map_cache->insert({column_family_id, it->second});
     return it->second;
   }
@@ -1227,48 +1208,44 @@ toku::locktree *RangeLockMgr::get_locktree_by_cfid(uint32_t column_family_id) {
 }
 
 struct LOCK_PRINT_CONTEXT {
-  BaseLockMgr::LockStatusData *data; // Save locks here
-  uint32_t cfh_id; // Column Family whose tree we are traversing
+  BaseLockMgr::LockStatusData* data;  // Save locks here
+  uint32_t cfh_id;  // Column Family whose tree we are traversing
 };
 
-static 
-void push_into_lock_status_data(void* param,
-                                const DBT *left, const DBT *right,
-                                TXNID txnid_arg, bool is_shared,
-                                TxnidVector *owners) {
-  struct LOCK_PRINT_CONTEXT *ctx= (LOCK_PRINT_CONTEXT*)param;
+static void push_into_lock_status_data(void* param, const DBT* left,
+                                       const DBT* right, TXNID txnid_arg,
+                                       bool is_shared, TxnidVector* owners) {
+  struct LOCK_PRINT_CONTEXT* ctx = (LOCK_PRINT_CONTEXT*)param;
   struct KeyLockInfo info;
 
   info.key.append((const char*)left->data, (size_t)left->size);
-  info.exclusive= !is_shared;
+  info.exclusive = !is_shared;
 
-  if (!(left->size == right->size && 
-        !memcmp(left->data, right->data, left->size)))
-  {
-    // not a single-point lock 
-    info.has_key2= true;
+  if (!(left->size == right->size &&
+        !memcmp(left->data, right->data, left->size))) {
+    // not a single-point lock
+    info.has_key2 = true;
     info.key2.append((const char*)right->data, right->size);
   }
 
   if (txnid_arg != TXNID_SHARED) {
-    TXNID txnid= ((PessimisticTransaction*)txnid_arg)->GetID();
+    TXNID txnid = ((PessimisticTransaction*)txnid_arg)->GetID();
     info.ids.push_back(txnid);
   } else {
     for (auto it : *owners) {
-      TXNID real_id= ((PessimisticTransaction*)it)->GetID();
+      TXNID real_id = ((PessimisticTransaction*)it)->GetID();
       info.ids.push_back(real_id);
     }
   }
   ctx->data->insert({ctx->cfh_id, info});
 }
 
-
 BaseLockMgr::LockStatusData RangeLockMgr::GetLockStatusData() {
   LockStatusData data;
   {
     InstrumentedMutexLock l(&ltree_map_mutex_);
     for (auto it : ltree_map_) {
-      LOCK_PRINT_CONTEXT ctx = {&data, it.first };
+      LOCK_PRINT_CONTEXT ctx = {&data, it.first};
       it.second->dump_locks((void*)&ctx, push_into_lock_status_data);
     }
   }

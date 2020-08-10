@@ -81,9 +81,8 @@ class PointLockTracker : public LockTracker {
   TrackedKeys tracked_keys_;
 };
 
-class PointLockTrackerFactory : public LockTrackerFactory
-{
-public:
+class PointLockTrackerFactory : public LockTrackerFactory {
+ public:
   LockTracker* Create() const override { return new PointLockTracker; }
 
   static PointLockTrackerFactory instance;

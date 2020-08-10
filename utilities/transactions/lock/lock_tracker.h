@@ -10,7 +10,7 @@
 #include "rocksdb/rocksdb_namespace.h"
 #include "rocksdb/status.h"
 #include "rocksdb/types.h"
-#include "rocksdb/utilities/transaction_db.h" // for Endpoint
+#include "rocksdb/utilities/transaction_db.h"  // for Endpoint
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -199,17 +199,16 @@ class LockTracker {
       ColumnFamilyId /*column_family_id*/) const = 0;
 };
 
-
-// An interface to LockTracker factory. LockTracker objects should only be 
+// An interface to LockTracker factory. LockTracker objects should only be
 // created through this interface's Create() method.
-// 
+//
 // One can get the factory pointer e.g. from Lock Manager which overloads
 // BaseLockMgr::getLockTrackerFactory().
 class LockTrackerFactory {
  public:
   // Caller owns the returned pointer.
   virtual LockTracker* Create() const = 0;
-  virtual ~LockTrackerFactory(){}
+  virtual ~LockTrackerFactory() {}
 };
 
 }  // namespace ROCKSDB_NAMESPACE

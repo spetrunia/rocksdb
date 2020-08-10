@@ -22,7 +22,7 @@ namespace ROCKSDB_NAMESPACE {
 
 TransactionBaseImpl::TransactionBaseImpl(DB* db,
                                          const WriteOptions& write_options,
-                                         const LockTrackerFactory *ltf)
+                                         const LockTrackerFactory* ltf)
     : db_(db),
       dbimpl_(static_cast_with_check<DBImpl>(db)),
       write_options_(write_options),

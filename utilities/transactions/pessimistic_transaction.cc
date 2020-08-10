@@ -38,9 +38,11 @@ TransactionID PessimisticTransaction::GenTxnID() {
 PessimisticTransaction::PessimisticTransaction(
     TransactionDB* txn_db, const WriteOptions& write_options,
     const TransactionOptions& txn_options, const bool init)
-    : TransactionBaseImpl(txn_db->GetRootDB(), write_options,
-                          static_cast_with_check<PessimisticTransactionDB>(txn_db)->
-                          getLockMgr()->getLockTrackerFactory()),
+    : TransactionBaseImpl(
+          txn_db->GetRootDB(), write_options,
+          static_cast_with_check<PessimisticTransactionDB>(txn_db)
+              ->getLockMgr()
+              ->getLockTrackerFactory()),
       txn_db_impl_(nullptr),
       expiration_time_(0),
       txn_id_(0),
@@ -94,7 +96,7 @@ void PessimisticTransaction::Initialize(const TransactionOptions& txn_options) {
 }
 
 PessimisticTransaction::~PessimisticTransaction() {
-  txn_db_impl_->UnLock(this, *tracked_locks_,  /*all_keys_hint=*/true);
+  txn_db_impl_->UnLock(this, *tracked_locks_, /*all_keys_hint=*/true);
   if (expiration_time_ > 0) {
     txn_db_impl_->RemoveExpirableTransaction(txn_id_);
   }
@@ -662,18 +664,17 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
   return s;
 }
 
-Status
-PessimisticTransaction::GetRangeLock(ColumnFamilyHandle* column_family,
-                                     const Endpoint& start_endp,
-                                     const Endpoint& end_endp) {
+Status PessimisticTransaction::GetRangeLock(ColumnFamilyHandle* column_family,
+                                            const Endpoint& start_endp,
+                                            const Endpoint& end_endp) {
   ColumnFamilyHandle* cfh =
       column_family ? column_family : db_impl_->DefaultColumnFamily();
-  uint32_t cfh_id= GetColumnFamilyID(cfh);
+  uint32_t cfh_id = GetColumnFamilyID(cfh);
 
-  Status s= txn_db_impl_->TryRangeLock(this, cfh_id, start_endp, end_endp);
+  Status s = txn_db_impl_->TryRangeLock(this, cfh_id, start_endp, end_endp);
 
   if (s.ok()) {
-    RangeLockRequest req {cfh_id, start_endp, end_endp};
+    RangeLockRequest req{cfh_id, start_endp, end_endp};
     tracked_locks_->Track(req);
   }
   return s;

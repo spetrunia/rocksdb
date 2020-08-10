@@ -37,22 +37,21 @@ PessimisticTransactionDB::PessimisticTransactionDB(
 }
 
 void PessimisticTransactionDB::init_lock_manager() {
-
   if (txn_db_options_.lock_mgr_handle) {
     // A custom lock manager was provided in options
-    lock_mgr_ = std::dynamic_pointer_cast<BaseLockMgr>(txn_db_options_.lock_mgr_handle);
+    lock_mgr_ =
+        std::dynamic_pointer_cast<BaseLockMgr>(txn_db_options_.lock_mgr_handle);
     range_lock_mgr_ = dynamic_cast<RangeLockMgr*>(lock_mgr_.get());
   } else {
     // Use point lock manager by default
     std::shared_ptr<TransactionDBMutexFactory> mutex_factory =
-        txn_db_options_.custom_mutex_factory?
-             txn_db_options_.custom_mutex_factory :
-               std::shared_ptr<TransactionDBMutexFactory>(
-                 new TransactionDBMutexFactoryImpl());
-    auto lock_mgr = new TransactionLockMgr(this, txn_db_options_.num_stripes,
-                                           txn_db_options_.max_num_locks,
-                                           txn_db_options_.max_num_deadlocks,
-                                           mutex_factory);
+        txn_db_options_.custom_mutex_factory
+            ? txn_db_options_.custom_mutex_factory
+            : std::shared_ptr<TransactionDBMutexFactory>(
+                  new TransactionDBMutexFactoryImpl());
+    auto lock_mgr = new TransactionLockMgr(
+        this, txn_db_options_.num_stripes, txn_db_options_.max_num_locks,
+        txn_db_options_.max_num_deadlocks, mutex_factory);
     lock_mgr_.reset(lock_mgr);
     range_lock_mgr_ = nullptr;
   }
@@ -414,16 +413,14 @@ Status PessimisticTransactionDB::TryLock(PessimisticTransaction* txn,
   return lock_mgr_->TryLock(txn, cfh_id, key, GetEnv(), exclusive);
 }
 
-Status
-PessimisticTransactionDB::TryRangeLock(PessimisticTransaction *txn,
-                                       uint32_t cfh_id,
-                                       const Endpoint& start_endp,
-                                       const Endpoint& end_endp) {
+Status PessimisticTransactionDB::TryRangeLock(PessimisticTransaction* txn,
+                                              uint32_t cfh_id,
+                                              const Endpoint& start_endp,
+                                              const Endpoint& end_endp) {
   if (range_lock_mgr_) {
-    return range_lock_mgr_->TryRangeLock(txn, cfh_id, start_endp,
-                                         end_endp, /*exclusive=*/true);
-  }
-  else
+    return range_lock_mgr_->TryRangeLock(txn, cfh_id, start_endp, end_endp,
+                                         /*exclusive=*/true);
+  } else
     return Status::NotSupported();
 }
 

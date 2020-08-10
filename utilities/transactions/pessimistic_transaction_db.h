@@ -98,13 +98,11 @@ class PessimisticTransactionDB : public TransactionDB {
 
   Status TryLock(PessimisticTransaction* txn, uint32_t cfh_id,
                  const std::string& key, bool exclusive);
-  Status TryRangeLock(PessimisticTransaction* txn,
-                      uint32_t cfh_id,
-                      const Endpoint& start_endp,
-                      const Endpoint& end_endp);
+  Status TryRangeLock(PessimisticTransaction* txn, uint32_t cfh_id,
+                      const Endpoint& start_endp, const Endpoint& end_endp);
 
   void UnLock(PessimisticTransaction* txn, const LockTracker& keys,
-              bool all_keys_hint=false);
+              bool all_keys_hint = false);
   void UnLock(PessimisticTransaction* txn, uint32_t cfh_id,
               const std::string& key);
 
@@ -147,7 +145,7 @@ class PessimisticTransactionDB : public TransactionDB {
   virtual void UpdateCFComparatorMap(const std::vector<ColumnFamilyHandle*>&) {}
   virtual void UpdateCFComparatorMap(ColumnFamilyHandle*) {}
 
-  BaseLockMgr *getLockMgr() const { return lock_mgr_.get(); }
+  BaseLockMgr* getLockMgr() const { return lock_mgr_.get(); }
 
  protected:
   DBImpl* db_impl_;
@@ -174,14 +172,15 @@ class PessimisticTransactionDB : public TransactionDB {
   friend class WriteUnpreparedTransactionTest_RecoveryTest_Test;
   friend class WriteUnpreparedTransactionTest_MarkLogWithPrepSection_Test;
 
-  // Lock manager being used. This is either a TransactionLockMgr or a RangeLockMgr
+  // Lock manager being used. This is either a TransactionLockMgr or a
+  // RangeLockMgr
   std::shared_ptr<BaseLockMgr> lock_mgr_;
 
   // Non-null if we are using a lock manager that supports range locking.
-  RangeLockMgr *range_lock_mgr_ = nullptr;
- 
+  RangeLockMgr* range_lock_mgr_ = nullptr;
+
   void init_lock_manager();
- 
+
   // Must be held when adding/dropping column families.
   InstrumentedMutex column_family_mutex_;
   Transaction* BeginInternalTransaction(const WriteOptions& options);

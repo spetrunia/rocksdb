@@ -9,17 +9,16 @@
 #include <string>
 #include <unordered_map>
 
-#include "utilities/transactions/lock/lock_tracker.h"
 #include "util/mutexlock.h"
+#include "utilities/transactions/lock/lock_tracker.h"
 
 // Range Locking:
-#include <locktree/locktree.h>
 #include <locktree/lock_request.h>
+#include <locktree/locktree.h>
 
 namespace ROCKSDB_NAMESPACE {
 
 class RangeLockList;
-
 
 /*
   Storage for locks that are currently held by a transaction.
@@ -33,30 +32,30 @@ class RangeLockList;
   This property is currently harmless.
 */
 class RangeLockList /*: public PessimisticTransaction::Lock--Storage */ {
-public:
-  virtual ~RangeLockList() {
-    clear();
-  }
+ public:
+  virtual ~RangeLockList() { clear(); }
 
   void clear() {
-    for(auto it : buffers_) {
+    for (auto it : buffers_) {
       it.second->destroy();
     }
     buffers_.clear();
   }
 
-  RangeLockList() : releasing_locks_(false) {
-  }
+  RangeLockList() : releasing_locks_(false) {}
 
-  void append(uint32_t cf_id, const DBT *left_key, const DBT *right_key) {
+  void append(uint32_t cf_id, const DBT* left_key, const DBT* right_key) {
     MutexLock l(&mutex_);
     // there's only one thread that calls this function.
     // the same thread will do lock release.
     assert(!releasing_locks_);
-    auto it= buffers_.find(cf_id);
+    auto it = buffers_.find(cf_id);
     if (it == buffers_.end()) {
       // create a new one
-      it= buffers_.emplace(cf_id, std::shared_ptr<toku::range_buffer>(new toku::range_buffer())).first;
+      it = buffers_
+               .emplace(cf_id, std::shared_ptr<toku::range_buffer>(
+                                   new toku::range_buffer()))
+               .first;
       it->second->create();
     }
     it->second->append(left_key, right_key);
@@ -73,45 +72,43 @@ public:
 
 class RangeLockTracker : public LockTracker {
  public:
-  RangeLockTracker(): range_list(nullptr) {}
+  RangeLockTracker() : range_list(nullptr) {}
 
   RangeLockTracker(const RangeLockTracker&) = delete;
   RangeLockTracker& operator=(const RangeLockTracker&) = delete;
 
-  void Track(const PointLockRequest& ) override;
-  void Track(const RangeLockRequest& ) override ;
-   
+  void Track(const PointLockRequest&) override;
+  void Track(const RangeLockRequest&) override;
+
   bool IsPointLockSupported() const override { return false; }
   bool IsRangeLockSupported() const override { return true; }
 
   // a Not-supported dummy implementation.
-  UntrackStatus Untrack(
-      const RangeLockRequest& /*lock_request*/) override {
+  UntrackStatus Untrack(const RangeLockRequest& /*lock_request*/) override {
     return UntrackStatus::NOT_TRACKED;
   }
 
-  UntrackStatus Untrack(
-      const PointLockRequest& /*lock_request*/) override {
+  UntrackStatus Untrack(const PointLockRequest& /*lock_request*/) override {
     return UntrackStatus::NOT_TRACKED;
   }
 
   // "If this method is not supported, leave it as a no-op."
-  void Merge(const LockTracker& ) override {}
+  void Merge(const LockTracker&) override {}
 
   // "If this method is not supported, leave it as a no-op."
-  void Subtract(const LockTracker& ) override {}
-  
+  void Subtract(const LockTracker&) override {}
+
   void Clear() override;
 
   // "If this method is not supported, returns nullptr."
   virtual LockTracker* GetTrackedLocksSinceSavePoint(
-      const LockTracker& ) const override {
+      const LockTracker&) const override {
     return nullptr;
   }
 
   PointLockStatus GetPointLockStatus(ColumnFamilyId column_family_id,
                                      const std::string& key) const override;
-  
+
   // The return value is only used for tests
   uint64_t GetNumPointLocks() const override { return 0; }
 
@@ -119,23 +116,23 @@ class RangeLockTracker : public LockTracker {
     return nullptr;
   }
 
-  KeyIterator* GetKeyIterator(ColumnFamilyId /*column_family_id*/) const override {
+  KeyIterator* GetKeyIterator(
+      ColumnFamilyId /*column_family_id*/) const override {
     return nullptr;
   }
-  
+
   // Non-override
-  RangeLockList *getList() { return range_list.get(); }
-  RangeLockList *getOrCreateList();
+  RangeLockList* getList() { return range_list.get(); }
+  RangeLockList* getOrCreateList();
 
  private:
   std::shared_ptr<RangeLockList> range_list;
 };
 
-class RangeLockTrackerFactory : public LockTrackerFactory
-{
-public:
-  LockTracker* Create() const override  { return new RangeLockTracker; }
-  
+class RangeLockTrackerFactory : public LockTrackerFactory {
+ public:
+  LockTracker* Create() const override { return new RangeLockTracker; }
+
   static RangeLockTrackerFactory instance;
 };
 

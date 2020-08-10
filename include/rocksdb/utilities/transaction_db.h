@@ -62,7 +62,7 @@ class RangeLockMgrHandle : public LockManagerHandle {
   };
 
   virtual Counters GetStatus() = 0;
-  virtual ~RangeLockMgrHandle() {};
+  virtual ~RangeLockMgrHandle(){};
 };
 
 // A factory function to create a Range Lock Manager. The created object should
@@ -71,8 +71,7 @@ class RangeLockMgrHandle : public LockManagerHandle {
 //     range-locking mode
 //  2. Used to control the lock manager when the DB is already open.
 RangeLockMgrHandle* NewRangeLockManager(
-  std::shared_ptr<TransactionDBMutexFactory> mutex_factory
-);
+    std::shared_ptr<TransactionDBMutexFactory> mutex_factory);
 
 struct TransactionDBOptions {
   // Specifies the maximum number of keys that can be locked at the same time
@@ -245,10 +244,10 @@ struct TransactionDBWriteOptimizations {
 
 struct KeyLockInfo {
   std::string key;
-  std::string key2; // Used when range locking is used
+  std::string key2;  // Used when range locking is used
   std::vector<TransactionID> ids;
   bool exclusive;
-  bool has_key2 = false; // TRUE <=> key2 has a value
+  bool has_key2 = false;  // TRUE <=> key2 has a value
 };
 
 struct DeadlockInfo {
