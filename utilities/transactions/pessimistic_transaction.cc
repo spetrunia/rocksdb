@@ -558,10 +558,10 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
   }
   uint32_t cfh_id = GetColumnFamilyID(column_family);
   std::string key_str = key.ToString();
-  //
+
   PointLockStatus status;
-  bool previously_locked;
   bool lock_upgrade;
+  bool previously_locked;
   if (tracked_locks_->IsPointLockSupported()) {
     status = tracked_locks_->GetPointLockStatus(cfh_id, key_str);
     previously_locked = status.locked;

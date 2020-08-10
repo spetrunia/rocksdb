@@ -29,7 +29,7 @@ struct TrackedKeyInfo {
     assert(seq <= info.seq);
     num_reads += info.num_reads;
     num_writes += info.num_writes;
-    exclusive |= info.exclusive;
+    exclusive = exclusive || info.exclusive;
   }
 };
 
@@ -45,9 +45,9 @@ class PointLockTracker : public LockTracker {
   PointLockTracker(const PointLockTracker&) = delete;
   PointLockTracker& operator=(const PointLockTracker&) = delete;
 
-  bool IsPointLockSupported() const { return true; }
+  bool IsPointLockSupported() const override { return true; }
 
-  bool IsRangeLockSupported() const { return false; }
+  bool IsRangeLockSupported() const override { return false; }
 
   void Track(const PointLockRequest& lock_request) override;
 

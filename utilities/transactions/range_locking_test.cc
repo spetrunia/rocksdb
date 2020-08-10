@@ -18,7 +18,7 @@
 #include "rocksdb/utilities/transaction.h"
 #include "rocksdb/utilities/transaction_db.h"
 #include "table/mock_table.h"
-#include "test_util/fault_injection_test_env.h"
+// #include "test_util/fault_injection_test_env.h"
 #include "util/random.h"
 #include "util/string_util.h"
 #include "test_util/sync_point.h"
