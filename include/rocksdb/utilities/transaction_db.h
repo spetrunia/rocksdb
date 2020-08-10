@@ -161,7 +161,6 @@ struct TransactionDBOptions {
   // is useful for write unprepared which requires named transactions.
   bool autogenerate_name = false;
 
-
   friend class WritePreparedTxnDB;
   friend class WriteUnpreparedTxn;
   friend class WritePreparedTransactionTestBase;

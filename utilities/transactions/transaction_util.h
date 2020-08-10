@@ -20,11 +20,6 @@
 
 namespace ROCKSDB_NAMESPACE {
 
-  // Number of writes done to this key
-
-  // Number of locking reads done to the key. If both numbers of reads and
-  // writes go down to zero (happens for RollbackToSavePoint and
-  // UndoGetForUpdate) the key will be removed from tracking.
 class DBImpl;
 struct SuperVersion;
 class WriteBatchWithIndex;

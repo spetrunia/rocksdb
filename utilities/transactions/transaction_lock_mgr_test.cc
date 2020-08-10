@@ -70,6 +70,8 @@ class TransactionLockMgrTest : public testing::Test {
   bool use_range_locking;
   std::shared_ptr<rocksdb::RangeLockMgrHandle> range_lock_mgr;
 
+  // With Range Locking, functions like GetLockStatusData() return range
+  // endpoints, not the keys themselves. This function extracts the key.
   std::string key_value(const std::string &s) {
     if (use_range_locking)
       return s.substr(1);
