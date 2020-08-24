@@ -34,17 +34,18 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
     along with PerconaFT.  If not, see <http://www.gnu.org/licenses/>.
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #pragma once
 
 // PORT2: #include "toku_config.h"
 
-#include <time.h>
-#include <sys/time.h>
 #include <stdint.h>
+#include <sys/time.h>
+#include <time.h>
 #if defined(__powerpc__)
-# include <sys/platform/ppc.h>
+#include <sys/platform/ppc.h>
 #endif
 
 #if 0
@@ -52,7 +53,7 @@ static inline float toku_tdiff (struct timeval *a, struct timeval *b) {
     return (float)((a->tv_sec - b->tv_sec) + 1e-6 * (a->tv_usec - b->tv_usec));
 }
 // PORT2: temporary:
-#define HAVE_CLOCK_REALTIME 
+#define HAVE_CLOCK_REALTIME
 #if !defined(HAVE_CLOCK_REALTIME)
 // OS X does not have clock_gettime, we fake clockid_t for the interface, and we'll implement it with clock_get_time.
 typedef int clockid_t;
@@ -72,18 +73,18 @@ int toku_clock_gettime(clockid_t clk_id, struct timespec *ts) __attribute__((__v
 //  (4) Time goes forward at a constant rate (doesn't get faster and slower)
 //  (5) Portable.
 //  (6) Getting the time is cheap.
-// Unfortuately it seems tough to get Properties 1-5.  So we go for Property 6,, but we abstract it.
-// We offer a type tokutime_t which can hold the time.
-// This type can be subtracted to get a time difference.
-// We can get the present time cheaply.
-// We can convert this type to seconds (but that can be expensive).
-// The implementation is to use RDTSC (hence we lose property 3: not portable).
+// Unfortuately it seems tough to get Properties 1-5.  So we go for Property 6,,
+// but we abstract it. We offer a type tokutime_t which can hold the time. This
+// type can be subtracted to get a time difference. We can get the present time
+// cheaply. We can convert this type to seconds (but that can be expensive). The
+// implementation is to use RDTSC (hence we lose property 3: not portable).
 // Recent machines have constant_tsc in which case we get property (4).
-// Recent OSs on recent machines (that have RDTSCP) fix the per-processor clock skew, so we get property (3).
-// We get property 2 with RDTSC (as long as there's not any skew).
-// We don't even try to get propety 1, since we don't need it.
-// The decision here is that these times are really accurate only on modern machines with modern OSs.
-typedef uint64_t tokutime_t;             // Time type used in by tokutek timers.
+// Recent OSs on recent machines (that have RDTSCP) fix the per-processor clock
+// skew, so we get property (3). We get property 2 with RDTSC (as long as
+// there's not any skew). We don't even try to get propety 1, since we don't
+// need it. The decision here is that these times are really accurate only on
+// modern machines with modern OSs.
+typedef uint64_t tokutime_t;  // Time type used in by tokutek timers.
 
 #if 0
 // The value of tokutime_t is not specified here. 
@@ -103,29 +104,30 @@ typedef uint64_t tokutime_t;             // Time type used in by tokutek timers.
 //
 double tokutime_to_seconds(tokutime_t)  __attribute__((__visibility__("default"))); // Convert tokutime to seconds.
 
-#endif 
+#endif
 
-// Get the value of tokutime for right now.  We want this to be fast, so we expose the implementation as RDTSC.
+// Get the value of tokutime for right now.  We want this to be fast, so we
+// expose the implementation as RDTSC.
 static inline tokutime_t toku_time_now(void) {
 #if defined(__x86_64__) || defined(__i386__)
-    uint32_t lo, hi;
-    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
-    return (uint64_t)hi << 32 | lo;
-#elif defined (__aarch64__)
-    uint64_t result;
-    __asm __volatile__ ("mrs %[rt], cntvct_el0" : [rt] "=r" (result));
-    return result;
+  uint32_t lo, hi;
+  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+  return (uint64_t)hi << 32 | lo;
+#elif defined(__aarch64__)
+  uint64_t result;
+  __asm __volatile__("mrs %[rt], cntvct_el0" : [rt] "=r"(result));
+  return result;
 #elif defined(__powerpc__)
-    return __ppc_get_timebase();
+  return __ppc_get_timebase();
 #else
 #error No timer implementation for this platform
 #endif
 }
 
 static inline uint64_t toku_current_time_microsec(void) {
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    return t.tv_sec * (1UL * 1000 * 1000) + t.tv_usec;
+  struct timeval t;
+  gettimeofday(&t, NULL);
+  return t.tv_sec * (1UL * 1000 * 1000) + t.tv_usec;
 }
 
 #if 0
@@ -138,7 +140,7 @@ static inline void toku_sleep_microsec(uint64_t ms) {
 
     select(0, NULL, NULL, NULL, &t);
 }
-#endif 
+#endif
 
 /*
   PORT: Usage of this file:
@@ -154,4 +156,3 @@ static inline void toku_sleep_microsec(uint64_t ms) {
   RocksDB environment provides Env::Default()->NowMicros() and NowNanos() which
   should be adequate substitutes.
 */
-

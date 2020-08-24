@@ -47,7 +47,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
    See the License for the specific language governing permissions and
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #pragma once
 
@@ -61,59 +62,60 @@ namespace toku {
 // txn waiting for another to finish before it can acquire a lock.
 
 class wfg {
-public:
-    // Create a lock request graph
-    void create(void);
+ public:
+  // Create a lock request graph
+  void create(void);
 
-    // Destroy the internals of the lock request graph
-    void destroy(void);
+  // Destroy the internals of the lock request graph
+  void destroy(void);
 
-    // Add an edge (a_id, b_id) to the graph
-    void add_edge(TXNID a_txnid, TXNID b_txnid);
+  // Add an edge (a_id, b_id) to the graph
+  void add_edge(TXNID a_txnid, TXNID b_txnid);
 
-    // Return true if a node with the given transaction id exists in the graph.
-    // Return false otherwise.
-    bool node_exists(TXNID txnid);
+  // Return true if a node with the given transaction id exists in the graph.
+  // Return false otherwise.
+  bool node_exists(TXNID txnid);
 
-    // Return true if there exists a cycle from a given transaction id in the graph.
-    // Return false otherwise.
-    bool cycle_exists_from_txnid(TXNID txnid,
-                                 std::function<void(TXNID)> reporter);
+  // Return true if there exists a cycle from a given transaction id in the
+  // graph. Return false otherwise.
+  bool cycle_exists_from_txnid(TXNID txnid,
+                               std::function<void(TXNID)> reporter);
 
-    // Apply a given function f to all of the nodes in the graph.  The apply function
-    // returns when the function f is called for all of the nodes in the graph, or the 
-    // function f returns non-zero.
-    void apply_nodes(int (*fn)(TXNID txnid, void *extra), void *extra);
+  // Apply a given function f to all of the nodes in the graph.  The apply
+  // function returns when the function f is called for all of the nodes in the
+  // graph, or the function f returns non-zero.
+  void apply_nodes(int (*fn)(TXNID txnid, void *extra), void *extra);
 
-    // Apply a given function f to all of the edges whose origin is a given node id. 
-    // The apply function returns when the function f is called for all edges in the
-    // graph rooted at node id, or the function f returns non-zero.
-    void apply_edges(TXNID txnid,
-            int (*fn)(TXNID txnid, TXNID edge_txnid, void *extra), void *extra);
+  // Apply a given function f to all of the edges whose origin is a given node
+  // id. The apply function returns when the function f is called for all edges
+  // in the graph rooted at node id, or the function f returns non-zero.
+  void apply_edges(TXNID txnid,
+                   int (*fn)(TXNID txnid, TXNID edge_txnid, void *extra),
+                   void *extra);
 
-private:
-    struct node {
-        // txnid for this node and the associated set of edges
-        TXNID txnid;
-        txnid_set edges;
-        bool visited;
+ private:
+  struct node {
+    // txnid for this node and the associated set of edges
+    TXNID txnid;
+    txnid_set edges;
+    bool visited;
 
-        static node *alloc(TXNID txnid);
+    static node *alloc(TXNID txnid);
 
-        static void free(node *n);
-    };
-    ENSURE_POD(node);
+    static void free(node *n);
+  };
+  ENSURE_POD(node);
 
-    toku::omt<node *> m_nodes;
+  toku::omt<node *> m_nodes;
 
-    node *find_node(TXNID txnid);
+  node *find_node(TXNID txnid);
 
-    node *find_create_node(TXNID txnid);
+  node *find_create_node(TXNID txnid);
 
-    bool cycle_exists_from_node(node *target, node *head,
-                                std::function<void(TXNID)> reporter);
+  bool cycle_exists_from_node(node *target, node *head,
+                              std::function<void(TXNID)> reporter);
 
-    static int find_by_txnid(node *const &node_a, const TXNID &txnid_b);
+  static int find_by_txnid(node *const &node_a, const TXNID &txnid_b);
 };
 ENSURE_POD(wfg);
 

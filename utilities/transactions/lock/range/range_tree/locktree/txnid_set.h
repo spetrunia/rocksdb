@@ -47,7 +47,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
    See the License for the specific language governing permissions and
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #pragma once
 
@@ -58,33 +59,33 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 namespace toku {
 
 class txnid_set {
-public:
-    // effect: Creates an empty set. Does not malloc space for
-    //         any entries yet. That is done lazily on add().
-    void create(void);
+ public:
+  // effect: Creates an empty set. Does not malloc space for
+  //         any entries yet. That is done lazily on add().
+  void create(void);
 
-    // effect: Destroy the set's internals.
-    void destroy(void);
+  // effect: Destroy the set's internals.
+  void destroy(void);
 
-    // returns: True if the given txnid is a member of the set.
-    bool contains(TXNID id) const;
+  // returns: True if the given txnid is a member of the set.
+  bool contains(TXNID id) const;
 
-    // effect: Adds a given txnid to the set if it did not exist
-    void add(TXNID txnid);
+  // effect: Adds a given txnid to the set if it did not exist
+  void add(TXNID txnid);
 
-    // effect: Deletes a txnid from the set if it exists.
-    void remove(TXNID txnid);
+  // effect: Deletes a txnid from the set if it exists.
+  void remove(TXNID txnid);
 
-    // returns: Size of the set
-    size_t size(void) const;
+  // returns: Size of the set
+  size_t size(void) const;
 
-    // returns: The "i'th" id in the set, as if it were sorted.
-    TXNID get(size_t i) const;
+  // returns: The "i'th" id in the set, as if it were sorted.
+  TXNID get(size_t i) const;
 
-private:
-    toku::omt<TXNID> m_txnids;
+ private:
+  toku::omt<TXNID> m_txnids;
 
-    friend class txnid_set_unit_test;
+  friend class txnid_set_unit_test;
 };
 ENSURE_POD(txnid_set);
 

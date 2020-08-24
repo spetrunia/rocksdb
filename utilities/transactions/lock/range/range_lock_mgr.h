@@ -101,4 +101,3 @@ void serialize_endpoint(const Endpoint& endp, std::string* buf);
 
 }  // namespace ROCKSDB_NAMESPACE
 #endif  // ROCKSDB_LITE
-

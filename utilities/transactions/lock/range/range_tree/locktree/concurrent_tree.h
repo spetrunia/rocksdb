@@ -45,17 +45,18 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
-   limitations under the License. 
+   limitations under the License.
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #pragma once
 
 #include <ft/comparator.h>
 
-#include "treenode.h"
 #include "keyrange.h"
+#include "treenode.h"
 
 namespace toku {
 
@@ -63,106 +64,106 @@ namespace toku {
 // Access to disjoint parts of the tree usually occurs concurrently.
 
 class concurrent_tree {
-public:
+ public:
+  // A locked_keyrange gives you exclusive access to read and write
+  // operations that occur on any keys in that range. You only have
+  // the right to operate on keys in that range or keys that were read
+  // from the keyrange using iterate()
+  //
+  // Access model:
+  // - user prepares a locked keyrange. all threads serialize behind prepare().
+  // - user breaks the serialzation point by acquiring a range, or releasing.
+  // - one thread operates on a certain locked_keyrange object at a time.
+  // - when the thread is finished, it releases
 
-    // A locked_keyrange gives you exclusive access to read and write
-    // operations that occur on any keys in that range. You only have
-    // the right to operate on keys in that range or keys that were read
-    // from the keyrange using iterate()
-    //
-    // Access model:
-    // - user prepares a locked keyrange. all threads serialize behind prepare().
-    // - user breaks the serialzation point by acquiring a range, or releasing.
-    // - one thread operates on a certain locked_keyrange object at a time.
-    // - when the thread is finished, it releases
+  class locked_keyrange {
+   public:
+    // effect: prepare to acquire a locked keyrange over the given
+    //         concurrent_tree, preventing other threads from preparing
+    //         until this thread either does acquire() or release().
+    // note: operations performed on a prepared keyrange are equivalent
+    //         to ones performed on an acquired keyrange over -inf, +inf.
+    // rationale: this provides the user with a serialization point for
+    // descending
+    //            or modifying the the tree. it also proives a convenient way of
+    //            doing serializable operations on the tree.
+    // There are two valid sequences of calls:
+    //  - prepare, acquire, [operations], release
+    //  - prepare, [operations],release
+    void prepare(concurrent_tree *tree);
 
-    class locked_keyrange {
-    public:
-        // effect: prepare to acquire a locked keyrange over the given
-        //         concurrent_tree, preventing other threads from preparing
-        //         until this thread either does acquire() or release().
-        // note: operations performed on a prepared keyrange are equivalent
-        //         to ones performed on an acquired keyrange over -inf, +inf.
-        // rationale: this provides the user with a serialization point for descending 
-        //            or modifying the the tree. it also proives a convenient way of
-        //            doing serializable operations on the tree.
-        // There are two valid sequences of calls:
-        //  - prepare, acquire, [operations], release
-        //  - prepare, [operations],release
-        void prepare(concurrent_tree *tree);
+    // requires: the locked keyrange was prepare()'d
+    // effect: acquire a locked keyrange over the given concurrent_tree.
+    //         the locked keyrange represents the range of keys overlapped
+    //         by the given range
+    void acquire(const keyrange &range);
 
-        // requires: the locked keyrange was prepare()'d
-        // effect: acquire a locked keyrange over the given concurrent_tree.
-        //         the locked keyrange represents the range of keys overlapped
-        //         by the given range
-        void acquire(const keyrange &range);
+    // effect: releases a locked keyrange and the mutex it holds
+    void release(void);
 
-        // effect: releases a locked keyrange and the mutex it holds
-        void release(void);
+    // effect: iterate over each range this locked_keyrange represents,
+    //         calling function->fn() on each node's keyrange and txnid
+    //         until there are no more or the function returns false
+    template <class F>
+    void iterate(F *function) const;
 
-        // effect: iterate over each range this locked_keyrange represents,
-        //         calling function->fn() on each node's keyrange and txnid
-        //         until there are no more or the function returns false
-        template <class F>
-        void iterate(F *function) const;
+    // Adds another owner to the lock on the specified keyrange.
+    // requires: the keyrange contains one treenode whose bounds are
+    //           exactly equal to the specifed range (no sub/supersets)
+    bool add_shared_owner(const keyrange &range, TXNID new_owner);
 
-        // Adds another owner to the lock on the specified keyrange.
-        // requires: the keyrange contains one treenode whose bounds are
-        //           exactly equal to the specifed range (no sub/supersets)
-        bool add_shared_owner(const keyrange &range, TXNID new_owner);
+    // inserts the given range into the tree, with an associated txnid.
+    // requires: range does not overlap with anything in this locked_keyrange
+    // rationale: caller is responsible for only inserting unique ranges
+    void insert(const keyrange &range, TXNID txnid, bool is_shared);
 
-        // inserts the given range into the tree, with an associated txnid.
-        // requires: range does not overlap with anything in this locked_keyrange
-        // rationale: caller is responsible for only inserting unique ranges
-        void insert(const keyrange &range, TXNID txnid, bool is_shared);
+    // effect: removes the given range from the tree.
+    //         - txnid=TXNID_ANY means remove the range no matter what its
+    //           owners are
+    //         - Other value means remove the specified txnid from
+    //           ownership (if the range has other owners, it will remain
+    //           in the tree)
+    // requires: range exists exactly in this locked_keyrange
+    // rationale: caller is responsible for only removing existing ranges
+    void remove(const keyrange &range, TXNID txnid);
 
-        // effect: removes the given range from the tree.
-        //         - txnid=TXNID_ANY means remove the range no matter what its
-        //           owners are
-        //         - Other value means remove the specified txnid from
-        //           ownership (if the range has other owners, it will remain
-        //           in the tree)
-        // requires: range exists exactly in this locked_keyrange
-        // rationale: caller is responsible for only removing existing ranges
-        void remove(const keyrange &range, TXNID txnid);
+    // effect: removes all of the keys represented by this locked keyrange
+    // rationale: we'd like a fast way to empty out a tree
+    void remove_all(void);
 
-        // effect: removes all of the keys represented by this locked keyrange
-        // rationale: we'd like a fast way to empty out a tree
-        void remove_all(void);
+   private:
+    // the concurrent tree this locked keyrange is for
+    concurrent_tree *m_tree;
 
-    private:
-        // the concurrent tree this locked keyrange is for
-        concurrent_tree *m_tree;
+    // the range of keys this locked keyrange represents
+    keyrange m_range;
 
-        // the range of keys this locked keyrange represents
-        keyrange m_range;
-
-        // the subtree under which all overlapping ranges exist
-        treenode *m_subtree;
-
-        friend class concurrent_tree_unit_test;
-    };
-
-    // effect: initialize the tree to an empty state
-    void create(const comparator *cmp);
-
-    // effect: destroy the tree.
-    // requires: tree is empty
-    void destroy(void);
-
-    // returns: true iff the tree is empty
-    bool is_empty(void);
-
-    // returns: the memory overhead of a single insertion into the tree
-    static uint64_t get_insertion_memory_overhead(void);
-
-private:
-    // the root needs to always exist so there's a lock to grab
-    // even if the tree is empty. that's why we store a treenode
-    // here and not a pointer to one.
-    treenode m_root;
+    // the subtree under which all overlapping ranges exist
+    treenode *m_subtree;
 
     friend class concurrent_tree_unit_test;
+  };
+
+  // effect: initialize the tree to an empty state
+  void create(const comparator *cmp);
+
+  // effect: destroy the tree.
+  // requires: tree is empty
+  void destroy(void);
+
+  // returns: true iff the tree is empty
+  bool is_empty(void);
+
+  // returns: the memory overhead of a single insertion into the tree
+  static uint64_t get_insertion_memory_overhead(void);
+
+ private:
+  // the root needs to always exist so there's a lock to grab
+  // even if the tree is empty. that's why we store a treenode
+  // here and not a pointer to one.
+  treenode m_root;
+
+  friend class concurrent_tree_unit_test;
 };
 
 // include the implementation here so we can use templated member

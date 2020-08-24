@@ -7,6 +7,4 @@
 
 #include "utilities/transactions/lock/point/point_lock_tracker.h"
 
-namespace ROCKSDB_NAMESPACE {
-
-}  // namespace ROCKSDB_NAMESPACE
+namespace ROCKSDB_NAMESPACE {}  // namespace ROCKSDB_NAMESPACE

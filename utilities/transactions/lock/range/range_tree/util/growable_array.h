@@ -47,7 +47,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
    See the License for the specific language governing permissions and
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #pragma once
 
@@ -70,68 +71,73 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 namespace toku {
 
-template<typename T> class GrowableArray {
+template <typename T>
+class GrowableArray {
  public:
-    void init (void)
-    // Effect: Initialize the array to contain no elements.
-    {
-	m_array=NULL;
-	m_size=0;
-	m_size_limit=0;
-    }
+  void init(void)
+  // Effect: Initialize the array to contain no elements.
+  {
+    m_array = NULL;
+    m_size = 0;
+    m_size_limit = 0;
+  }
 
-    void deinit (void)
-    // Effect: Deinitialize the array (freeing any memory it uses, for example).
-    {
-	toku_free(m_array);
-	m_array     =NULL;
-	m_size      =0;
-	m_size_limit=0;
-    }
+  void deinit(void)
+  // Effect: Deinitialize the array (freeing any memory it uses, for example).
+  {
+    toku_free(m_array);
+    m_array = NULL;
+    m_size = 0;
+    m_size_limit = 0;
+  }
 
-    T fetch_unchecked (size_t i) const
-    // Effect: Fetch the ith element.  If i is out of range, the system asserts.
-    {
-	return m_array[i];
-    }
+  T fetch_unchecked(size_t i) const
+  // Effect: Fetch the ith element.  If i is out of range, the system asserts.
+  {
+    return m_array[i];
+  }
 
-    void store_unchecked (size_t i, T v)
-    // Effect: Store v in the ith element.  If i is out of range, the system asserts.
-    {
-	paranoid_invariant(i<m_size);
-	m_array[i]=v;
-    }
+  void store_unchecked(size_t i, T v)
+  // Effect: Store v in the ith element.  If i is out of range, the system
+  // asserts.
+  {
+    paranoid_invariant(i < m_size);
+    m_array[i] = v;
+  }
 
-    void push (T v)
-    // Effect: Add v to the end of the array (increasing the size).  The amortized cost of this operation is constant.
-    // Implementation hint:  Double the size of the array when it gets too big so that the amortized cost stays constant.
-    {
-	if (m_size>=m_size_limit) {
-	    if (m_array==NULL) {
-		m_size_limit=1;
-	    } else {
-		m_size_limit*=2;
-	    }
-	    XREALLOC_N(m_size_limit, m_array);
-	}
-	m_array[m_size++]=v;
+  void push(T v)
+  // Effect: Add v to the end of the array (increasing the size).  The amortized
+  // cost of this operation is constant. Implementation hint:  Double the size
+  // of the array when it gets too big so that the amortized cost stays
+  // constant.
+  {
+    if (m_size >= m_size_limit) {
+      if (m_array == NULL) {
+        m_size_limit = 1;
+      } else {
+        m_size_limit *= 2;
+      }
+      XREALLOC_N(m_size_limit, m_array);
     }
+    m_array[m_size++] = v;
+  }
 
-    size_t get_size (void) const
-    // Effect: Return the number of elements in the array.
-    {
-	return m_size;
-    }
-    size_t memory_size(void) const
-    // Effect: Return the size (in bytes) that the array occupies in memory.  This is really only an estimate.
-    {
-	return sizeof(*this)+sizeof(T)*m_size_limit;
-    }
+  size_t get_size(void) const
+  // Effect: Return the number of elements in the array.
+  {
+    return m_size;
+  }
+  size_t memory_size(void) const
+  // Effect: Return the size (in bytes) that the array occupies in memory.  This
+  // is really only an estimate.
+  {
+    return sizeof(*this) + sizeof(T) * m_size_limit;
+  }
 
  private:
-    T     *m_array;
-    size_t m_size;
-    size_t m_size_limit; // How much space is allocated in array.
+  T *m_array;
+  size_t m_size;
+  size_t m_size_limit;  // How much space is allocated in array.
 };
 
-}
+}  // namespace toku

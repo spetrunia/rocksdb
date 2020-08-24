@@ -10,10 +10,10 @@ enum class toku_instr_object_type { mutex, rwlock, cond, thread, file };
 struct PSI_file;
 
 struct TOKU_FILE {
-    /** The real file. */
-    FILE *file;
-    struct PSI_file *key;
-    TOKU_FILE() : file(nullptr), key(nullptr) {}
+  /** The real file. */
+  FILE *file;
+  struct PSI_file *key;
+  TOKU_FILE() : file(nullptr), key(nullptr) {}
 };
 
 struct PSI_mutex;
@@ -27,13 +27,12 @@ struct toku_pthread_rwlock_t;
 class toku_instr_key;
 
 class toku_instr_probe_empty {
-   public:
-    explicit toku_instr_probe_empty(UU(const toku_instr_key &key)) {}
+ public:
+  explicit toku_instr_probe_empty(UU(const toku_instr_key &key)) {}
 
-    void start_with_source_location(UU(const char *src_file),
-                                    UU(int src_line)) {}
+  void start_with_source_location(UU(const char *src_file), UU(int src_line)) {}
 
-    void stop() {}
+  void stop() {}
 };
 
 #define TOKU_PROBE_START(p) p->start_with_source_location(__FILE__, __LINE__)
@@ -46,30 +45,29 @@ extern toku_instr_key toku_uninstrumented;
 #include <pthread.h>
 
 class toku_instr_key {
-   public:
-    toku_instr_key(UU(toku_instr_object_type type),
-                   UU(const char *group),
-                   UU(const char *name)) {}
+ public:
+  toku_instr_key(UU(toku_instr_object_type type), UU(const char *group),
+                 UU(const char *name)) {}
 
-    explicit toku_instr_key(UU(pfs_key_t key_id)) {}
+  explicit toku_instr_key(UU(pfs_key_t key_id)) {}
 
-    ~toku_instr_key() {}
+  ~toku_instr_key() {}
 };
 
 typedef toku_instr_probe_empty toku_instr_probe;
 
 enum class toku_instr_file_op {
-    file_stream_open,
-    file_create,
-    file_open,
-    file_delete,
-    file_rename,
-    file_read,
-    file_write,
-    file_sync,
-    file_stream_close,
-    file_close,
-    file_stat
+  file_stream_open,
+  file_create,
+  file_open,
+  file_delete,
+  file_rename,
+  file_read,
+  file_write,
+  file_sync,
+  file_stream_close,
+  file_close,
+  file_stat
 };
 
 struct PSI_file {};
@@ -77,12 +75,10 @@ struct PSI_mutex {};
 
 struct toku_io_instrumentation {};
 
-inline int toku_pthread_create(UU(const toku_instr_key &key),
-                               pthread_t *thread,
+inline int toku_pthread_create(UU(const toku_instr_key &key), pthread_t *thread,
                                const pthread_attr_t *attr,
-                               void *(*start_routine)(void *),
-                               void *arg) {
-    return pthread_create(thread, attr, start_routine, arg);
+                               void *(*start_routine)(void *), void *arg) {
+  return pthread_create(thread, attr, start_routine, arg);
 }
 
 inline void toku_instr_register_current_thread() {}
@@ -98,58 +94,41 @@ inline void toku_instr_file_open_begin(UU(toku_io_instrumentation &io_instr),
                                        UU(int src_line)) {}
 
 inline void toku_instr_file_stream_open_end(
-    UU(toku_io_instrumentation &io_instr),
-    UU(TOKU_FILE &file)) {}
+    UU(toku_io_instrumentation &io_instr), UU(TOKU_FILE &file)) {}
 
 inline void toku_instr_file_open_end(UU(toku_io_instrumentation &io_instr),
                                      UU(int fd)) {}
 
 inline void toku_instr_file_name_close_begin(
-    UU(toku_io_instrumentation &io_instr),
-    UU(const toku_instr_key &key),
-    UU(toku_instr_file_op op),
-    UU(const char *name),
-    UU(const char *src_file),
+    UU(toku_io_instrumentation &io_instr), UU(const toku_instr_key &key),
+    UU(toku_instr_file_op op), UU(const char *name), UU(const char *src_file),
     UU(int src_line)) {}
 
 inline void toku_instr_file_stream_close_begin(
-    UU(toku_io_instrumentation &io_instr),
-    UU(toku_instr_file_op op),
-    UU(TOKU_FILE &file),
-    UU(const char *src_file),
-    UU(int src_line)) {}
+    UU(toku_io_instrumentation &io_instr), UU(toku_instr_file_op op),
+    UU(TOKU_FILE &file), UU(const char *src_file), UU(int src_line)) {}
 
 inline void toku_instr_file_fd_close_begin(
-    UU(toku_io_instrumentation &io_instr),
-    UU(toku_instr_file_op op),
-    UU(int fd),
-    UU(const char *src_file),
-    UU(int src_line)) {}
+    UU(toku_io_instrumentation &io_instr), UU(toku_instr_file_op op),
+    UU(int fd), UU(const char *src_file), UU(int src_line)) {}
 
 inline void toku_instr_file_close_end(UU(toku_io_instrumentation &io_instr),
                                       UU(int result)) {}
 
 inline void toku_instr_file_io_begin(UU(toku_io_instrumentation &io_instr),
-                                     UU(toku_instr_file_op op),
-                                     UU(int fd),
+                                     UU(toku_instr_file_op op), UU(int fd),
                                      UU(unsigned int count),
                                      UU(const char *src_file),
                                      UU(int src_line)) {}
 
-inline void toku_instr_file_name_io_begin(UU(toku_io_instrumentation &io_instr),
-                                          UU(const toku_instr_key &key),
-                                          UU(toku_instr_file_op op),
-                                          UU(const char *name),
-                                          UU(unsigned int count),
-                                          UU(const char *src_file),
-                                          UU(int src_line)) {}
+inline void toku_instr_file_name_io_begin(
+    UU(toku_io_instrumentation &io_instr), UU(const toku_instr_key &key),
+    UU(toku_instr_file_op op), UU(const char *name), UU(unsigned int count),
+    UU(const char *src_file), UU(int src_line)) {}
 
 inline void toku_instr_file_stream_io_begin(
-    UU(toku_io_instrumentation &io_instr),
-    UU(toku_instr_file_op op),
-    UU(TOKU_FILE &file),
-    UU(unsigned int count),
-    UU(const char *src_file),
+    UU(toku_io_instrumentation &io_instr), UU(toku_instr_file_op op),
+    UU(TOKU_FILE &file), UU(unsigned int count), UU(const char *src_file),
     UU(int src_line)) {}
 
 inline void toku_instr_file_io_end(UU(toku_io_instrumentation &io_instr),
@@ -161,22 +140,18 @@ struct toku_mutex_instrumentation {};
 
 inline PSI_mutex *toku_instr_mutex_init(UU(const toku_instr_key &key),
                                         UU(toku_mutex_t &mutex)) {
-    return nullptr;
+  return nullptr;
 }
 
 inline void toku_instr_mutex_destroy(UU(PSI_mutex *&mutex_instr)) {}
 
 inline void toku_instr_mutex_lock_start(
-    UU(toku_mutex_instrumentation &mutex_instr),
-    UU(toku_mutex_t &mutex),
-    UU(const char *src_file),
-    UU(int src_line)) {}
+    UU(toku_mutex_instrumentation &mutex_instr), UU(toku_mutex_t &mutex),
+    UU(const char *src_file), UU(int src_line)) {}
 
 inline void toku_instr_mutex_trylock_start(
-    UU(toku_mutex_instrumentation &mutex_instr),
-    UU(toku_mutex_t &mutex),
-    UU(const char *src_file),
-    UU(int src_line)) {}
+    UU(toku_mutex_instrumentation &mutex_instr), UU(toku_mutex_t &mutex),
+    UU(const char *src_file), UU(int src_line)) {}
 
 inline void toku_instr_mutex_lock_end(
     UU(toku_mutex_instrumentation &mutex_instr),
@@ -187,23 +162,20 @@ inline void toku_instr_mutex_unlock(UU(PSI_mutex *mutex_instr)) {}
 struct toku_cond_instrumentation {};
 
 enum class toku_instr_cond_op {
-    cond_wait,
-    cond_timedwait,
+  cond_wait,
+  cond_timedwait,
 };
 
 inline PSI_cond *toku_instr_cond_init(UU(const toku_instr_key &key),
                                       UU(toku_cond_t &cond)) {
-    return nullptr;
+  return nullptr;
 }
 
 inline void toku_instr_cond_destroy(UU(PSI_cond *&cond_instr)) {}
 
 inline void toku_instr_cond_wait_start(
-    UU(toku_cond_instrumentation &cond_instr),
-    UU(toku_instr_cond_op op),
-    UU(toku_cond_t &cond),
-    UU(toku_mutex_t &mutex),
-    UU(const char *src_file),
+    UU(toku_cond_instrumentation &cond_instr), UU(toku_instr_cond_op op),
+    UU(toku_cond_t &cond), UU(toku_mutex_t &mutex), UU(const char *src_file),
     UU(int src_line)) {}
 
 inline void toku_instr_cond_wait_end(UU(toku_cond_instrumentation &cond_instr),
@@ -253,7 +225,6 @@ inline void toku_instr_rwlock_unlock(UU(toku_pthread_rwlock_t &rwlock)) {}
 #include <toku_instr_mysql.h>
 #endif  // MYSQL_TOKUDB_ENGINE
 
-
 // Mutexes
 extern toku_instr_key *manager_escalation_mutex_key;
 extern toku_instr_key *manager_escalator_mutex_key;
@@ -266,5 +237,3 @@ extern toku_instr_key *locktree_request_info_retry_mutex_key;
 extern toku_instr_key *lock_request_m_wait_cond_key;
 extern toku_instr_key *locktree_request_info_retry_cv_key;
 extern toku_instr_key *manager_m_escalator_done_key;
-
-

@@ -6,8 +6,8 @@
 #ifndef ROCKSDB_LITE
 
 #include "utilities/transactions/lock/lock_mgr.h"
-#include "utilities/transactions/lock/range/range_lock_mgr.h"
 #include "utilities/transactions/lock/point/point_lock_mgr.h"
+#include "utilities/transactions/lock/range/range_lock_mgr.h"
 
 #include "file/file_util.h"
 #include "port/port.h"

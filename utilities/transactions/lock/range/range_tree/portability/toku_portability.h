@@ -34,40 +34,40 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
     along with PerconaFT.  If not, see <http://www.gnu.org/licenses/>.
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #pragma once
 
 #if defined(__clang__)
-#  define constexpr_static_assert(a, b)
+#define constexpr_static_assert(a, b)
 #else
-#  define constexpr_static_assert(a, b) static_assert(a, b)
+#define constexpr_static_assert(a, b) static_assert(a, b)
 #endif
 
 // include here, before they get deprecated
 #include <portability/toku_atomic.h>
 
-#include <stdint.h>
 #include <inttypes.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/stat.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #if defined(__cplusplus)
-# include <type_traits>
+#include <type_traits>
 #endif
 
 #if defined(__cplusplus)
 // decltype() here gives a reference-to-pointer instead of just a pointer,
 // just use __typeof__
-# define CAST_FROM_VOIDP(name, value) name = static_cast<__typeof__(name)>(value)
+#define CAST_FROM_VOIDP(name, value) name = static_cast<__typeof__(name)>(value)
 #else
-# define CAST_FROM_VOIDP(name, value) name = cast_to_typeof(name) (value)
+#define CAST_FROM_VOIDP(name, value) name = cast_to_typeof(name)(value)
 #endif
 
 #define UU(x) x __attribute__((__unused__))
 
 #include "toku_instrumentation.h"
-

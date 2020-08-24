@@ -22,7 +22,6 @@
 #include "utilities/transactions/lock/point/point_lock_tracker.h"
 #include "utilities/transactions/pessimistic_transaction.h"
 
-
 namespace ROCKSDB_NAMESPACE {
 
 struct LockInfo;

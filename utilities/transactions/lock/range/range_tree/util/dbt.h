@@ -34,7 +34,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
     along with PerconaFT.  If not, see <http://www.gnu.org/licenses/>.
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #pragma once
 
@@ -61,9 +62,11 @@ DBT *toku_copyref_dbt(DBT *dst, const DBT src);
 
 DBT *toku_clone_dbt(DBT *dst, const DBT &src);
 
-int toku_dbt_set(uint32_t len, const void *val, DBT *d, struct simple_dbt *sdbt);
+int toku_dbt_set(uint32_t len, const void *val, DBT *d,
+                 struct simple_dbt *sdbt);
 
-int toku_dbt_set_value(DBT *, const void **val, uint32_t vallen, void **staticptrp, bool dbt1_disposable);
+int toku_dbt_set_value(DBT *, const void **val, uint32_t vallen,
+                       void **staticptrp, bool dbt1_disposable);
 
 void toku_sdbt_cleanup(struct simple_dbt *sdbt);
 

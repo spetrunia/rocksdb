@@ -47,7 +47,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
    See the License for the specific language governing permissions and
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #pragma once
 
@@ -62,84 +63,78 @@ namespace toku {
 // means it is cheap in the common case.
 
 class keyrange {
-public:
+ public:
+  // effect: constructor that borrows left and right key pointers.
+  //         no memory is allocated or copied.
+  void create(const DBT *left_key, const DBT *right_key);
 
-    // effect: constructor that borrows left and right key pointers.
-    //         no memory is allocated or copied.
-    void create(const DBT *left_key, const DBT *right_key);
+  // effect: constructor that allocates and copies another keyrange's points.
+  void create_copy(const keyrange &range);
 
-    // effect: constructor that allocates and copies another keyrange's points.
-    void create_copy(const keyrange &range);
+  // effect: destroys the keyrange, freeing any allocated memory
+  void destroy(void);
 
-    // effect: destroys the keyrange, freeing any allocated memory
-    void destroy(void);
+  // effect: extends the keyrange by choosing the leftmost and rightmost
+  //         endpoints from this range and the given range.
+  //         replaced keys in this range are freed, new keys are copied.
+  void extend(const comparator &cmp, const keyrange &range);
 
-    // effect: extends the keyrange by choosing the leftmost and rightmost
-    //         endpoints from this range and the given range.
-    //         replaced keys in this range are freed, new keys are copied.
-    void extend(const comparator &cmp, const keyrange &range);
+  // returns: the amount of memory this keyrange takes. does not account
+  //          for point optimizations or malloc overhead.
+  uint64_t get_memory_size(void) const;
 
-    // returns: the amount of memory this keyrange takes. does not account
-    //          for point optimizations or malloc overhead.
-    uint64_t get_memory_size(void) const;
+  // returns: pointer to the left key of this range
+  const DBT *get_left_key(void) const;
 
-    // returns: pointer to the left key of this range
-    const DBT *get_left_key(void) const;
+  // returns: pointer to the right key of this range
+  const DBT *get_right_key(void) const;
 
-    // returns: pointer to the right key of this range
-    const DBT *get_right_key(void) const;
+  // two ranges are either equal, lt, gt, or overlapping
+  enum comparison { EQUALS, LESS_THAN, GREATER_THAN, OVERLAPS };
 
-    // two ranges are either equal, lt, gt, or overlapping
-    enum comparison {
-        EQUALS,
-        LESS_THAN,
-        GREATER_THAN,
-        OVERLAPS
-    };
+  // effect: compares this range to the given range
+  // returns: LESS_THAN    if given range is strictly to the left
+  //          GREATER_THAN if given range is strictly to the right
+  //          EQUALS       if given range has the same left and right endpoints
+  //          OVERLAPS     if at least one of the given range's endpoints falls
+  //                       between this range's endpoints
+  comparison compare(const comparator &cmp, const keyrange &range) const;
 
-    // effect: compares this range to the given range
-    // returns: LESS_THAN    if given range is strictly to the left
-    //          GREATER_THAN if given range is strictly to the right
-    //          EQUALS       if given range has the same left and right endpoints
-    //          OVERLAPS     if at least one of the given range's endpoints falls
-    //                       between this range's endpoints
-    comparison compare(const comparator &cmp, const keyrange &range) const;
+  // returns: true if the range and the given range are equal or overlapping
+  bool overlaps(const comparator &cmp, const keyrange &range) const;
 
-    // returns: true if the range and the given range are equal or overlapping
-    bool overlaps(const comparator &cmp, const keyrange &range) const;
+  // returns: a keyrange representing -inf, +inf
+  static keyrange get_infinite_range(void);
 
-    // returns: a keyrange representing -inf, +inf
-    static keyrange get_infinite_range(void);
+ private:
+  // some keys should be copied, some keys should not be.
+  //
+  // to support both, we use two DBTs for copies and two pointers
+  // for temporaries. the access rule is:
+  // - if a pointer is non-null, then it reprsents the key.
+  // - otherwise the pointer is null, and the key is in the copy.
+  DBT m_left_key_copy;
+  DBT m_right_key_copy;
+  const DBT *m_left_key;
+  const DBT *m_right_key;
 
-private:
-    // some keys should be copied, some keys should not be.
-    //
-    // to support both, we use two DBTs for copies and two pointers
-    // for temporaries. the access rule is:
-    // - if a pointer is non-null, then it reprsents the key.
-    // - otherwise the pointer is null, and the key is in the copy.
-    DBT m_left_key_copy;
-    DBT m_right_key_copy;
-    const DBT *m_left_key;
-    const DBT *m_right_key;
+  // if this range is a point range, then m_left_key == m_right_key
+  // and the actual data is stored exactly once in m_left_key_copy.
+  bool m_point_range;
 
-    // if this range is a point range, then m_left_key == m_right_key
-    // and the actual data is stored exactly once in m_left_key_copy.
-    bool m_point_range;
+  // effect: initializes a keyrange to be empty
+  void init_empty(void);
 
-    // effect: initializes a keyrange to be empty
-    void init_empty(void);
+  // effect: copies the given key once into the left key copy
+  //         and sets the right key copy to share the left.
+  // rationale: optimization for point ranges to only do one malloc
+  void set_both_keys(const DBT *key);
 
-    // effect: copies the given key once into the left key copy
-    //         and sets the right key copy to share the left.
-    // rationale: optimization for point ranges to only do one malloc
-    void set_both_keys(const DBT *key);
+  // effect: destroys the current left key. sets and copies the new one.
+  void replace_left_key(const DBT *key);
 
-    // effect: destroys the current left key. sets and copies the new one.
-    void replace_left_key(const DBT *key);
-
-    // effect: destroys the current right key. sets and copies the new one.
-    void replace_right_key(const DBT *key);
+  // effect: destroys the current right key. sets and copies the new one.
+  void replace_right_key(const DBT *key);
 };
 
 } /* namespace toku */
