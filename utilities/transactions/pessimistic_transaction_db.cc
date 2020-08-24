@@ -23,6 +23,7 @@
 #include "utilities/transactions/transaction_db_mutex_impl.h"
 #include "utilities/transactions/write_prepared_txn_db.h"
 #include "utilities/transactions/write_unprepared_txn_db.h"
+#include "utilities/transactions/lock/point/point_lock_mgr.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -625,7 +626,7 @@ void PessimisticTransactionDB::GetAllPreparedTransactions(
   }
 }
 
-TransactionLockMgr::LockStatusData
+BaseLockMgr::LockStatusData
 PessimisticTransactionDB::GetLockStatusData() {
   return lock_mgr_->GetLockStatusData();
 }

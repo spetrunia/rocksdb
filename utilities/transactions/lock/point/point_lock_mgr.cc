@@ -5,7 +5,7 @@
 
 #ifndef ROCKSDB_LITE
 
-#include "utilities/transactions/transaction_lock_mgr.h"
+#include "utilities/transactions/lock/point/point_lock_mgr.h"
 
 #include <cinttypes>
 #include <algorithm>

@@ -17,36 +17,17 @@
 #include "util/autovector.h"
 #include "util/hash_map.h"
 #include "util/thread_local.h"
+#include "utilities/transactions/lock/lock_mgr.h"
 #include "utilities/transactions/lock/lock_tracker.h"
-#include "utilities/transactions/lock/point_lock_tracker.h"
-#include "utilities/transactions/lock/range/range_lock_tracker.h"
+#include "utilities/transactions/lock/point/point_lock_tracker.h"
 #include "utilities/transactions/pessimistic_transaction.h"
 
-// Range Locking:
-#include <locktree/lock_request.h>
-#include <locktree/locktree.h>
 
 namespace ROCKSDB_NAMESPACE {
 
-class ColumnFamilyHandle;
 struct LockInfo;
 struct LockMap;
 struct LockMapStripe;
-
-struct DeadlockInfoBuffer {
- private:
-  std::vector<DeadlockPath> paths_buffer_;
-  uint32_t buffer_idx_;
-  std::mutex paths_buffer_mutex_;
-  std::vector<DeadlockPath> Normalize();
-
- public:
-  explicit DeadlockInfoBuffer(uint32_t n_latest_dlocks)
-      : paths_buffer_(n_latest_dlocks), buffer_idx_(0) {}
-  void AddNewPath(DeadlockPath path);
-  void Resize(uint32_t target_size);
-  std::vector<DeadlockPath> PrepareBuffer();
-};
 
 struct TrackedTrxInfo {
   autovector<TransactionID> m_neighbors;
@@ -55,37 +36,7 @@ struct TrackedTrxInfo {
   std::string m_waiting_key;
 };
 
-class Slice;
 class PessimisticTransactionDB;
-
-//
-// Base class for Point and Range-based lock manager.
-//
-class BaseLockMgr {
- public:
-  virtual LockTrackerFactory* getLockTrackerFactory() = 0;
-
-  virtual void AddColumnFamily(const ColumnFamilyHandle* cfh) = 0;
-  virtual void RemoveColumnFamily(const ColumnFamilyHandle* cfh) = 0;
-
-  virtual Status TryLock(PessimisticTransaction* txn, uint32_t column_family_id,
-                         const std::string& key, Env* env, bool exclusive) = 0;
-  virtual void UnLock(const PessimisticTransaction* txn,
-                      const LockTracker& tracker, Env* env) = 0;
-  virtual void UnLock(PessimisticTransaction* txn, uint32_t column_family_id,
-                      const std::string& key, Env* env) = 0;
-
-  // Resize the deadlock info buffer
-  virtual void Resize(uint32_t) = 0;
-  virtual std::vector<DeadlockPath> GetDeadlockInfoBuffer() = 0;
-
-  // TransactionDB will call this at start
-  virtual void init(TransactionDB*){};
-  virtual ~BaseLockMgr() {}
-
-  using LockStatusData = std::unordered_multimap<uint32_t, KeyLockInfo>;
-  virtual LockStatusData GetLockStatusData() = 0;
-};
 
 // Point lock manager
 class TransactionLockMgr : public BaseLockMgr {

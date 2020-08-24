@@ -6,7 +6,8 @@
 #pragma once
 #ifndef ROCKSDB_LITE
 
-#include "utilities/transactions/transaction_lock_mgr.h"
+#include "utilities/transactions/lock/lock_mgr.h"
+#include "utilities/transactions/lock/range/range_lock_tracker.h"
 
 // Range Locking:
 #include <locktree/lock_request.h>

@@ -11,6 +11,7 @@
 
 #include "util/mutexlock.h"
 #include "utilities/transactions/lock/lock_tracker.h"
+#include "utilities/transactions/lock/range/range_lock_tracker.h"
 
 // Range Locking:
 #include <locktree/lock_request.h>

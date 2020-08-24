@@ -239,7 +239,8 @@ LIB_SOURCES =                                                   \
   utilities/table_properties_collectors/compact_on_deletion_collector.cc \
   utilities/trace/file_trace_reader_writer.cc                   \
   utilities/transactions/lock/lock_tracker.cc                   \
-  utilities/transactions/lock/point_lock_tracker.cc             \
+  utilities/transactions/lock/point/point_lock_tracker.cc       \
+  utilities/transactions/lock/point/point_lock_mgr.cc           \
   utilities/transactions/lock/range/range_lock_mgr.cc           \
   utilities/transactions/lock/range/range_lock_tracker.cc       \
   utilities/transactions/lock/range/range_tree/locktree/keyrange.cc     \
@@ -259,7 +260,6 @@ LIB_SOURCES =                                                   \
   utilities/transactions/snapshot_checker.cc                    \
   utilities/transactions/transaction_base.cc                    \
   utilities/transactions/transaction_db_mutex_impl.cc           \
-  utilities/transactions/transaction_lock_mgr.cc                \
   utilities/transactions/transaction_util.cc                    \
   utilities/transactions/write_prepared_txn.cc                  \
   utilities/transactions/write_prepared_txn_db.cc               \
