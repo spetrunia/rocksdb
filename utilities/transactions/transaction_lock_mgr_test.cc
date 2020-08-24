@@ -5,16 +5,15 @@
 
 #ifndef ROCKSDB_LITE
 
-#include "utilities/transactions/lock/lock_mgr.h"
-#include "utilities/transactions/lock/point/point_lock_mgr.h"
-#include "utilities/transactions/lock/range/range_lock_mgr.h"
-
 #include "file/file_util.h"
 #include "port/port.h"
 #include "port/stack_trace.h"
 #include "rocksdb/utilities/transaction_db.h"
 #include "test_util/testharness.h"
 #include "test_util/testutil.h"
+#include "utilities/transactions/lock/lock_mgr.h"
+#include "utilities/transactions/lock/point/point_lock_mgr.h"
+#include "utilities/transactions/lock/range/range_lock_mgr.h"
 #include "utilities/transactions/transaction_db_mutex_impl.h"
 
 namespace ROCKSDB_NAMESPACE {

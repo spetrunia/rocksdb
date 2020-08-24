@@ -114,6 +114,7 @@ void partitioned_counters_destroy(void);
 
 #if 0
 #include <pthread.h>
+
 #include "fttypes.h"
 
 // Used inside the PARTITIONED_COUNTER.

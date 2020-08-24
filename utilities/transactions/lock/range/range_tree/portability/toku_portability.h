@@ -46,9 +46,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #endif
 
 // include here, before they get deprecated
-#include <portability/toku_atomic.h>
-
 #include <inttypes.h>
+#include <portability/toku_atomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/stat.h>

@@ -16,10 +16,9 @@
 #include <stdint.h>
 #include <time.h>
 
-#include "toku_portability.h"
-
 #include "rocksdb/utilities/transaction_db.h"
 #include "rocksdb/utilities/transaction_db_mutex.h"
+#include "toku_portability.h"
 
 using rocksdb::TransactionDBCondVar;
 using rocksdb::TransactionDBMutex;

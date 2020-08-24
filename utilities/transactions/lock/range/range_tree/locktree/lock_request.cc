@@ -50,10 +50,10 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident \
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include "portability/toku_race_tools.h"
-
 #include "locktree/lock_request.h"
+
 #include "locktree/locktree.h"
+#include "portability/toku_race_tools.h"
 #include "txn_subst.h"
 #include "util/dbt.h"
 

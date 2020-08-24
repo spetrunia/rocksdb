@@ -39,9 +39,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include <memory.h>
 #include <string.h>
-#include <algorithm>
-
 #include <util/memarena.h>
+
+#include <algorithm>
 
 void memarena::create(size_t initial_size) {
   _current_chunk = arena_chunk();

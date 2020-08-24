@@ -42,7 +42,6 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include <string.h>
 
 #include "portability/memory.h"
-
 #include "util/dbt.h"
 
 typedef int (*ft_compare_func)(DB *db, void *arg, const DBT *a, const DBT *b);

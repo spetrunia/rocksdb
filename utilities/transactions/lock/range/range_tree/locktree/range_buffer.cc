@@ -50,11 +50,11 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident \
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
+#include "locktree/range_buffer.h"
+
 #include <string.h>
 
 #include "portability/memory.h"
-
-#include "locktree/range_buffer.h"
 #include "util/dbt.h"
 
 namespace toku {

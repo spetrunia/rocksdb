@@ -52,14 +52,13 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #pragma once
 
-#include <atomic>
-
 #include <db.h>
+#include <ft/comparator.h>
 #include <toku_external_pthread.h>
 #include <toku_pthread.h>
 #include <toku_time.h>
 
-#include <ft/comparator.h>
+#include <atomic>
 // PORT #include <ft/ft-ops.h>  // just for DICTIONARY_ID..
 // PORT: ft-status for LTM_STATUS:
 #include <ft/ft-status.h>

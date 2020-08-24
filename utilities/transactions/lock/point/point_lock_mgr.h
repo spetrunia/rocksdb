@@ -6,9 +6,9 @@
 #pragma once
 #ifndef ROCKSDB_LITE
 
+#include <memory>
 #include <string>
 #include <unordered_map>
-#include <memory>
 #include <utility>
 #include <vector>
 

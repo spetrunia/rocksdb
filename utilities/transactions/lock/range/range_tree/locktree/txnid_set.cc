@@ -51,6 +51,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #include "txnid_set.h"
+
 #include <db.h>
 
 namespace toku {

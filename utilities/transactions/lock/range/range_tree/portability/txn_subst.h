@@ -4,6 +4,7 @@
 #pragma once
 
 #include <set>
+
 #include "util/omt.h"
 
 typedef uint64_t TXNID;

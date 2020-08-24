@@ -54,12 +54,11 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include <db.h>
 
-#include "portability/toku_pthread.h"
-
 #include "ft/comparator.h"
 #include "locktree/locktree.h"
 #include "locktree/txnid_set.h"
 #include "locktree/wfg.h"
+#include "portability/toku_pthread.h"
 
 namespace toku {
 

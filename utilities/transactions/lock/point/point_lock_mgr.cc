@@ -7,8 +7,8 @@
 
 #include "utilities/transactions/lock/point/point_lock_mgr.h"
 
-#include <cinttypes>
 #include <algorithm>
+#include <cinttypes>
 #include <mutex>
 
 #include "monitoring/perf_context_imp.h"

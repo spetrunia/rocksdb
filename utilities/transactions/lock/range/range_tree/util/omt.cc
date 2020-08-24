@@ -51,9 +51,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #include <db.h>
-#include <string.h>
-
 #include <portability/memory.h>
+#include <string.h>
 
 namespace toku {
 

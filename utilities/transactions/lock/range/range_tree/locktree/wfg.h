@@ -53,6 +53,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #pragma once
 
 #include <functional>
+
 #include "locktree/txnid_set.h"
 #include "util/omt.h"
 
