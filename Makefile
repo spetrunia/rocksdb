@@ -455,8 +455,8 @@ endif
 
 CFLAGS += $(WARNING_FLAGS) -I. -I./include $(PLATFORM_CCFLAGS) $(OPT)
 CXXFLAGS += $(WARNING_FLAGS) -I. -I./include \
-  -I./utilities/transactions/range_locking \
-  -I./utilities/transactions/range_locking/portability \
+  -I./utilities/transactions/lock/range/range_tree \
+  -I./utilities/transactions/lock/range/range_tree/portability \
   $(PLATFORM_CXXFLAGS) $(OPT) -Woverloaded-virtual -Wnon-virtual-dtor -Wno-missing-field-initializers
 
 LDFLAGS += $(PLATFORM_LDFLAGS)
@@ -1782,7 +1782,7 @@ blob_db_test: $(OBJ_DIR)/utilities/blob_db/blob_db_test.o $(TEST_LIBRARY) $(LIBR
 repeatable_thread_test: $(OBJ_DIR)/util/repeatable_thread_test.o $(TEST_LIBRARY) $(LIBRARY)
 	$(AM_LINK)
 
-range_locking_test: utilities/transactions/range_locking_test.o $(TEST_LIBRARY) $(LIBRARY)
+range_locking_test: utilities/transactions/lock/range/range_locking_test.o $(TEST_LIBRARY) $(LIBRARY)
 	$(AM_LINK)
 
 range_tombstone_fragmenter_test: $(OBJ_DIR)/db/range_tombstone_fragmenter_test.o $(TEST_LIBRARY) $(LIBRARY)

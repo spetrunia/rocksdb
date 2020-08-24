@@ -536,8 +536,8 @@ if(WITH_FOLLY_DISTRIBUTED_MUTEX)
   include_directories(${PROJECT_SOURCE_DIR}/third-party/folly)
 endif()
 
-include_directories(${PROJECT_SOURCE_DIR}/utilities/transactions/range_locking)
-include_directories(${PROJECT_SOURCE_DIR}/utilities/transactions/range_locking/portability)
+include_directories(${PROJECT_SOURCE_DIR}/utilities/transactions/lock/range/range_tree)
+include_directories(${PROJECT_SOURCE_DIR}/utilities/transactions/lock/range/range_tree/portability)
 
 find_package(Threads REQUIRED)
 
@@ -784,7 +784,8 @@ set(SOURCES
         utilities/trace/file_trace_reader_writer.cc
         utilities/transactions/lock/lock_tracker.cc
         utilities/transactions/lock/point_lock_tracker.cc
-        utilities/transactions/lock/range_lock_tracker.cc
+        utilities/transactions/lock/range/range_lock_mgr.cc
+        utilities/transactions/lock/range/range_lock_tracker.cc
         utilities/transactions/optimistic_transaction_db_impl.cc
         utilities/transactions/optimistic_transaction.cc
         utilities/transactions/pessimistic_transaction.cc
@@ -805,29 +806,29 @@ set(SOURCES
 
 # The following list is intentionally missing these files that are #include'd
 # into others:
-#   range_locking/locktree/concurrent_tree.cc
-#   range_locking/locktree/treenode.cc
+#   lock/range/range_tree/locktree/concurrent_tree.cc
+#   lock/range/range_tree/locktree/treenode.cc
 #   util/omt.cc
 
 list(APPEND SOURCES
-  utilities/transactions/range_locking/locktree/keyrange.cc
-  utilities/transactions/range_locking/locktree/keyrange.h
-  utilities/transactions/range_locking/locktree/txnid_set.h
-  utilities/transactions/range_locking/locktree/range_buffer.cc
-  utilities/transactions/range_locking/locktree/locktree.h
-  utilities/transactions/range_locking/locktree/treenode.h
-  utilities/transactions/range_locking/locktree/wfg.cc
-  utilities/transactions/range_locking/locktree/lock_request.cc
-  utilities/transactions/range_locking/locktree/locktree.cc
-  utilities/transactions/range_locking/locktree/range_buffer.h
-  utilities/transactions/range_locking/locktree/manager.cc
-  utilities/transactions/range_locking/locktree/wfg.h
-  utilities/transactions/range_locking/locktree/txnid_set.cc
-  utilities/transactions/range_locking/locktree/lock_request.h
-  utilities/transactions/range_locking/locktree/concurrent_tree.h
-  utilities/transactions/range_locking/util/dbt.cc
-  utilities/transactions/range_locking/util/memarena.cc
-  utilities/transactions/range_locking/standalone_port.cc)
+  utilities/transactions/lock/range/range_tree/locktree/keyrange.cc
+  utilities/transactions/lock/range/range_tree/locktree/keyrange.h
+  utilities/transactions/lock/range/range_tree/locktree/txnid_set.h
+  utilities/transactions/lock/range/range_tree/locktree/range_buffer.cc
+  utilities/transactions/lock/range/range_tree/locktree/locktree.h
+  utilities/transactions/lock/range/range_tree/locktree/treenode.h
+  utilities/transactions/lock/range/range_tree/locktree/wfg.cc
+  utilities/transactions/lock/range/range_tree/locktree/lock_request.cc
+  utilities/transactions/lock/range/range_tree/locktree/locktree.cc
+  utilities/transactions/lock/range/range_tree/locktree/range_buffer.h
+  utilities/transactions/lock/range/range_tree/locktree/manager.cc
+  utilities/transactions/lock/range/range_tree/locktree/wfg.h
+  utilities/transactions/lock/range/range_tree/locktree/txnid_set.cc
+  utilities/transactions/lock/range/range_tree/locktree/lock_request.h
+  utilities/transactions/lock/range/range_tree/locktree/concurrent_tree.h
+  utilities/transactions/lock/range/range_tree/util/dbt.cc
+  utilities/transactions/lock/range/range_tree/util/memarena.cc
+  utilities/transactions/lock/range/range_tree/standalone_port.cc)
 
 if(HAVE_SSE42 AND NOT MSVC)
   set_source_files_properties(
@@ -1196,7 +1197,7 @@ if(WITH_TESTS)
         utilities/transactions/transaction_lock_mgr_test.cc
         utilities/transactions/write_prepared_transaction_test.cc
         utilities/transactions/write_unprepared_transaction_test.cc
-        utilities/transactions/range_locking_test.cc
+        utilities/transactions/lock/range/range_tree_test.cc
         utilities/ttl/ttl_test.cc
         utilities/write_batch_with_index/write_batch_with_index_test.cc
     )

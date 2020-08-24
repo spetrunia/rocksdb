@@ -1,5 +1,5 @@
-#include "utilities/transactions/lock/range_lock_tracker.h"
-#include "utilities/transactions/transaction_lock_mgr.h"
+#include "utilities/transactions/lock/range/range_lock_tracker.h"
+#include "utilities/transactions/lock/range/range_lock_mgr.h"
 
 namespace ROCKSDB_NAMESPACE {
 
