@@ -20,8 +20,8 @@
 #include "rocksdb/options.h"
 #include "rocksdb/utilities/transaction_db.h"
 #include "util/cast_util.h"
+#include "utilities/transactions/lock/lock_mgr.h"
 #include "utilities/transactions/pessimistic_transaction.h"
-#include "utilities/transactions/transaction_lock_mgr.h"
 #include "utilities/transactions/write_prepared_txn.h"
 
 namespace ROCKSDB_NAMESPACE {
@@ -130,7 +130,7 @@ class PessimisticTransactionDB : public TransactionDB {
   // not thread safe. current use case is during recovery (single thread)
   void GetAllPreparedTransactions(std::vector<Transaction*>* trans) override;
 
-  TransactionLockMgr::LockStatusData GetLockStatusData() override;
+  BaseLockMgr::LockStatusData GetLockStatusData() override;
 
   std::vector<DeadlockPath> GetDeadlockInfoBuffer() override;
   void SetDeadlockInfoBufferSize(uint32_t target_size) override;
@@ -141,6 +141,8 @@ class PessimisticTransactionDB : public TransactionDB {
   // the base class even when the subclass do not read it in the fast path.
   virtual void UpdateCFComparatorMap(const std::vector<ColumnFamilyHandle*>&) {}
   virtual void UpdateCFComparatorMap(ColumnFamilyHandle*) {}
+
+  BaseLockMgr* getLockMgr() const { return lock_mgr_.get(); }
 
  protected:
   DBImpl* db_impl_;
@@ -166,7 +168,12 @@ class PessimisticTransactionDB : public TransactionDB {
   friend class TransactionStressTest_TwoPhaseLongPrepareTest_Test;
   friend class WriteUnpreparedTransactionTest_RecoveryTest_Test;
   friend class WriteUnpreparedTransactionTest_MarkLogWithPrepSection_Test;
-  TransactionLockMgr lock_mgr_;
+
+  // Lock manager being used. This is either a TransactionLockMgr or a
+  // RangeLockMgr
+  std::shared_ptr<BaseLockMgr> lock_mgr_;
+
+  void init_lock_manager();
 
   // Must be held when adding/dropping column families.
   InstrumentedMutex column_family_mutex_;

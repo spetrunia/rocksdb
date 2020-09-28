@@ -5,10 +5,10 @@
 
 #ifndef ROCKSDB_LITE
 
-#include "utilities/transactions/transaction_lock_mgr.h"
+#include "utilities/transactions/lock/point/point_lock_mgr.h"
 
-#include <cinttypes>
 #include <algorithm>
+#include <cinttypes>
 #include <mutex>
 
 #include "monitoring/perf_context_imp.h"
@@ -19,6 +19,7 @@
 #include "util/hash.h"
 #include "util/thread_local.h"
 #include "utilities/transactions/pessimistic_transaction_db.h"
+#include "utilities/transactions/transaction_db_mutex_impl.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -176,7 +177,8 @@ size_t LockMap::GetStripe(const std::string& key) const {
   return FastRange64(GetSliceNPHash64(key), num_stripes_);
 }
 
-void TransactionLockMgr::AddColumnFamily(uint32_t column_family_id) {
+void TransactionLockMgr::AddColumnFamily(const ColumnFamilyHandle* cfh) {
+  uint32_t column_family_id = cfh->GetID();
   InstrumentedMutexLock l(&lock_map_mutex_);
 
   if (lock_maps_.find(column_family_id) == lock_maps_.end()) {
@@ -188,7 +190,8 @@ void TransactionLockMgr::AddColumnFamily(uint32_t column_family_id) {
   }
 }
 
-void TransactionLockMgr::RemoveColumnFamily(uint32_t column_family_id) {
+void TransactionLockMgr::RemoveColumnFamily(const ColumnFamilyHandle* cfh) {
+  uint32_t column_family_id = cfh->GetID();
   // Remove lock_map for this column family.  Since the lock map is stored
   // as a shared ptr, concurrent transactions can still keep using it
   // until they release their references to it.
@@ -690,7 +693,7 @@ void TransactionLockMgr::UnLock(const PessimisticTransaction* txn,
   }
 }
 
-TransactionLockMgr::LockStatusData TransactionLockMgr::GetLockStatusData() {
+BaseLockMgr::LockStatusData TransactionLockMgr::GetLockStatusData() {
   LockStatusData data;
   // Lock order here is important. The correct order is lock_map_mutex_, then
   // for every column family ID in ascending order lock every stripe in

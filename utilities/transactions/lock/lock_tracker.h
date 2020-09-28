@@ -10,6 +10,7 @@
 #include "rocksdb/rocksdb_namespace.h"
 #include "rocksdb/status.h"
 #include "rocksdb/types.h"
+#include "rocksdb/utilities/transaction_db.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -29,9 +30,18 @@ struct PointLockRequest {
   bool exclusive = true;
 };
 
+// Temporary. Remove this when Range Locking patch is in and
+// there is a real range endpoint definition available
+struct Endpoint {};
+
 // Request for locking a range of keys.
 struct RangeLockRequest {
-  // TODO
+  // The id of the key's column family.
+  ColumnFamilyId column_family_id;
+
+  // The range to be locked
+  Endpoint start_endp;
+  Endpoint end_endp;
 };
 
 struct PointLockStatus {
@@ -191,9 +201,16 @@ class LockTracker {
       ColumnFamilyId /*column_family_id*/) const = 0;
 };
 
-// LockTracker should always be constructed through this factory method,
-// instead of constructing through concrete implementations' constructor.
-// Caller owns the returned pointer.
-LockTracker* NewLockTracker();
+// An interface to LockTracker factory. LockTracker objects should only be
+// created through this interface's Create() method.
+//
+// One can get the factory pointer e.g. from Lock Manager which overloads
+// BaseLockMgr::getLockTrackerFactory().
+class LockTrackerFactory {
+ public:
+  // Caller owns the returned pointer.
+  virtual LockTracker* Create() const = 0;
+  virtual ~LockTrackerFactory() {}
+};
 
 }  // namespace ROCKSDB_NAMESPACE

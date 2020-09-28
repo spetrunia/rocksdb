@@ -31,6 +31,24 @@ enum TxnDBWritePolicy {
 
 const uint32_t kInitialMaxDeadlocks = 5;
 
+class BaseLockMgr;
+
+// A lock manager handle
+// The workflow is as follows:
+//  * Use a factory method (like NewRangeLockManager()) to create a lock
+//    manager and get its handle.
+//  * A Handle for a particular kind of lock manager will have extra
+//    methods and parameters to control the lock manager
+//  * Pass the handle to RocksDB in TransactionDBOptions::lock_mgr_handle. It
+//    will be used to perform locking.
+class LockManagerHandle {
+ public:
+  // dynamic_cast from this class to BaseLockMgr should work, this is how
+  // PessimisticTransactionDB will get the Lock Manager it's going to use.
+
+  virtual ~LockManagerHandle(){};
+};
+
 struct TransactionDBOptions {
   // Specifies the maximum number of keys that can be locked at the same time
   // per column family.
@@ -91,6 +109,10 @@ struct TransactionDBOptions {
   // logic in myrocks. This hack of simply not rolling back merge operands works
   // for the special way that myrocks uses this operands.
   bool rollback_merge_operands = false;
+
+  // nullptr means use default lock manager.
+  // Other value means the user provides a custom lock manager.
+  std::shared_ptr<LockManagerHandle> lock_mgr_handle;
 
   // If true, the TransactionDB implementation might skip concurrency control
   // unless it is overridden by TransactionOptions or

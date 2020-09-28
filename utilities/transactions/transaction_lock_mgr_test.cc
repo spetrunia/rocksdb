@@ -5,14 +5,14 @@
 
 #ifndef ROCKSDB_LITE
 
-#include "utilities/transactions/transaction_lock_mgr.h"
-
 #include "file/file_util.h"
 #include "port/port.h"
 #include "port/stack_trace.h"
 #include "rocksdb/utilities/transaction_db.h"
 #include "test_util/testharness.h"
 #include "test_util/testutil.h"
+#include "utilities/transactions/lock/lock_mgr.h"
+#include "utilities/transactions/lock/point/point_lock_mgr.h"
 #include "utilities/transactions/transaction_db_mutex_impl.h"
 
 namespace ROCKSDB_NAMESPACE {
@@ -57,8 +57,33 @@ class TransactionLockMgrTest : public testing::Test {
   TransactionDB* db_;
 };
 
+class MockColumnFamily : public ColumnFamilyHandle {
+  uint32_t id_;
+  std::string name;
+
+ public:
+  ~MockColumnFamily() {}
+  MockColumnFamily(uint32_t id_arg) : id_(id_arg) {}
+  uint32_t GetID() const override { return id_; }
+
+  const std::string& GetName() const override { return name; }
+
+  Status GetDescriptor(ColumnFamilyDescriptor*) override {
+    assert(0);
+    return Status::NotSupported();
+  }
+
+  const Comparator* GetComparator() const override {
+    return BytewiseComparator();
+  };
+};
+
+MockColumnFamily cf_1024(1024);
+MockColumnFamily cf_2048(2048);
+
+MockColumnFamily cf_1(1);
 TEST_F(TransactionLockMgrTest, LockNonExistingColumnFamily) {
-  locker_->RemoveColumnFamily(1024);
+  locker_->RemoveColumnFamily(&cf_1024);
   auto txn = NewTxn();
   auto s = locker_->TryLock(txn, 1024, "k", env_, true);
   ASSERT_TRUE(s.IsInvalidArgument());
@@ -67,8 +92,8 @@ TEST_F(TransactionLockMgrTest, LockNonExistingColumnFamily) {
 }
 
 TEST_F(TransactionLockMgrTest, LockStatus) {
-  locker_->AddColumnFamily(1024);
-  locker_->AddColumnFamily(2048);
+  locker_->AddColumnFamily(&cf_1024);
+  locker_->AddColumnFamily(&cf_2048);
 
   auto txn1 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn1, 1024, "k1", env_, true));
@@ -102,7 +127,7 @@ TEST_F(TransactionLockMgrTest, LockStatus) {
 }
 
 TEST_F(TransactionLockMgrTest, UnlockExclusive) {
-  locker_->AddColumnFamily(1);
+  locker_->AddColumnFamily(&cf_1);
 
   auto txn1 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn1, 1, "k", env_, true));
@@ -116,7 +141,7 @@ TEST_F(TransactionLockMgrTest, UnlockExclusive) {
 }
 
 TEST_F(TransactionLockMgrTest, UnlockShared) {
-  locker_->AddColumnFamily(1);
+  locker_->AddColumnFamily(&cf_1);
 
   auto txn1 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn1, 1, "k", env_, false));
@@ -131,7 +156,7 @@ TEST_F(TransactionLockMgrTest, UnlockShared) {
 
 TEST_F(TransactionLockMgrTest, ReentrantExclusiveLock) {
   // Tests that a txn can acquire exclusive lock on the same key repeatedly.
-  locker_->AddColumnFamily(1);
+  locker_->AddColumnFamily(&cf_1);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
@@ -140,7 +165,7 @@ TEST_F(TransactionLockMgrTest, ReentrantExclusiveLock) {
 
 TEST_F(TransactionLockMgrTest, ReentrantSharedLock) {
   // Tests that a txn can acquire shared lock on the same key repeatedly.
-  locker_->AddColumnFamily(1);
+  locker_->AddColumnFamily(&cf_1);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
@@ -149,7 +174,7 @@ TEST_F(TransactionLockMgrTest, ReentrantSharedLock) {
 
 TEST_F(TransactionLockMgrTest, LockUpgrade) {
   // Tests that a txn can upgrade from a shared lock to an exclusive lock.
-  locker_->AddColumnFamily(1);
+  locker_->AddColumnFamily(&cf_1);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
@@ -159,7 +184,7 @@ TEST_F(TransactionLockMgrTest, LockUpgrade) {
 TEST_F(TransactionLockMgrTest, LockDowngrade) {
   // Tests that a txn can acquire a shared lock after acquiring an exclusive
   // lock on the same key.
-  locker_->AddColumnFamily(1);
+  locker_->AddColumnFamily(&cf_1);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
@@ -168,7 +193,7 @@ TEST_F(TransactionLockMgrTest, LockDowngrade) {
 
 TEST_F(TransactionLockMgrTest, LockConflict) {
   // Tests that lock conflicts lead to lock timeout.
-  locker_->AddColumnFamily(1);
+  locker_->AddColumnFamily(&cf_1);
   auto txn1 = NewTxn();
   auto txn2 = NewTxn();
 
@@ -217,7 +242,7 @@ port::Thread BlockUntilWaitingTxn(std::function<void()> f) {
 
 TEST_F(TransactionLockMgrTest, SharedLocks) {
   // Tests that shared locks can be concurrently held by multiple transactions.
-  locker_->AddColumnFamily(1);
+  locker_->AddColumnFamily(&cf_1);
   auto txn1 = NewTxn();
   auto txn2 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn1, 1, "k", env_, false));
@@ -231,7 +256,7 @@ TEST_F(TransactionLockMgrTest, Deadlock) {
   // Deadlock scenario:
   // txn1 exclusively locks k1, and wants to lock k2;
   // txn2 exclusively locks k2, and wants to lock k1.
-  locker_->AddColumnFamily(1);
+  locker_->AddColumnFamily(&cf_1);
   TransactionOptions txn_opt;
   txn_opt.deadlock_detect = true;
   txn_opt.lock_timeout = 1000000;
@@ -278,7 +303,7 @@ TEST_F(TransactionLockMgrTest, Deadlock) {
 TEST_F(TransactionLockMgrTest, DeadlockDepthExceeded) {
   // Tests that when detecting deadlock, if the detection depth is exceeded,
   // it's also viewed as deadlock.
-  locker_->AddColumnFamily(1);
+  locker_->AddColumnFamily(&cf_1);
   TransactionOptions txn_opt;
   txn_opt.deadlock_detect = true;
   txn_opt.deadlock_detect_depth = 1;

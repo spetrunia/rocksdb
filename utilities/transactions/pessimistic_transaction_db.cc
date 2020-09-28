@@ -19,6 +19,7 @@
 #include "test_util/sync_point.h"
 #include "util/cast_util.h"
 #include "util/mutexlock.h"
+#include "utilities/transactions/lock/point/point_lock_mgr.h"
 #include "utilities/transactions/pessimistic_transaction.h"
 #include "utilities/transactions/transaction_db_mutex_impl.h"
 #include "utilities/transactions/write_prepared_txn_db.h"
@@ -30,15 +31,30 @@ PessimisticTransactionDB::PessimisticTransactionDB(
     DB* db, const TransactionDBOptions& txn_db_options)
     : TransactionDB(db),
       db_impl_(static_cast_with_check<DBImpl>(db)),
-      txn_db_options_(txn_db_options),
-      lock_mgr_(this, txn_db_options_.num_stripes, txn_db_options.max_num_locks,
-                txn_db_options_.max_num_deadlocks,
-                txn_db_options_.custom_mutex_factory
-                    ? txn_db_options_.custom_mutex_factory
-                    : std::shared_ptr<TransactionDBMutexFactory>(
-                          new TransactionDBMutexFactoryImpl())) {
+      txn_db_options_(txn_db_options) {
+  init_lock_manager();
   assert(db_impl_ != nullptr);
   info_log_ = db_impl_->GetDBOptions().info_log;
+}
+
+void PessimisticTransactionDB::init_lock_manager() {
+  if (txn_db_options_.lock_mgr_handle) {
+    // A custom lock manager was provided in options
+    lock_mgr_ =
+        std::dynamic_pointer_cast<BaseLockMgr>(txn_db_options_.lock_mgr_handle);
+  } else {
+    // Use point lock manager by default
+    std::shared_ptr<TransactionDBMutexFactory> mutex_factory =
+        txn_db_options_.custom_mutex_factory
+            ? txn_db_options_.custom_mutex_factory
+            : std::shared_ptr<TransactionDBMutexFactory>(
+                  new TransactionDBMutexFactoryImpl());
+    auto lock_mgr = new TransactionLockMgr(
+        this, txn_db_options_.num_stripes, txn_db_options_.max_num_locks,
+        txn_db_options_.max_num_deadlocks, mutex_factory);
+    lock_mgr_.reset(lock_mgr);
+  }
+  lock_mgr_->init(this);
 }
 
 // Support initiliazing PessimisticTransactionDB from a stackable db
@@ -61,13 +77,8 @@ PessimisticTransactionDB::PessimisticTransactionDB(
     StackableDB* db, const TransactionDBOptions& txn_db_options)
     : TransactionDB(db),
       db_impl_(static_cast_with_check<DBImpl>(db->GetRootDB())),
-      txn_db_options_(txn_db_options),
-      lock_mgr_(this, txn_db_options_.num_stripes, txn_db_options.max_num_locks,
-                txn_db_options_.max_num_deadlocks,
-                txn_db_options_.custom_mutex_factory
-                    ? txn_db_options_.custom_mutex_factory
-                    : std::shared_ptr<TransactionDBMutexFactory>(
-                          new TransactionDBMutexFactoryImpl())) {
+      txn_db_options_(txn_db_options) {
+  init_lock_manager();
   assert(db_impl_ != nullptr);
 }
 
@@ -359,7 +370,7 @@ Status TransactionDB::WrapStackableDB(
 // allocate a LockMap for it.
 void PessimisticTransactionDB::AddColumnFamily(
     const ColumnFamilyHandle* handle) {
-  lock_mgr_.AddColumnFamily(handle->GetID());
+  lock_mgr_->AddColumnFamily(handle);
 }
 
 Status PessimisticTransactionDB::CreateColumnFamily(
@@ -373,7 +384,7 @@ Status PessimisticTransactionDB::CreateColumnFamily(
 
   s = db_->CreateColumnFamily(options, column_family_name, handle);
   if (s.ok()) {
-    lock_mgr_.AddColumnFamily((*handle)->GetID());
+    lock_mgr_->AddColumnFamily(*handle);
     UpdateCFComparatorMap(*handle);
   }
 
@@ -388,7 +399,7 @@ Status PessimisticTransactionDB::DropColumnFamily(
 
   Status s = db_->DropColumnFamily(column_family);
   if (s.ok()) {
-    lock_mgr_.RemoveColumnFamily(column_family->GetID());
+    lock_mgr_->RemoveColumnFamily(column_family);
   }
 
   return s;
@@ -398,17 +409,17 @@ Status PessimisticTransactionDB::TryLock(PessimisticTransaction* txn,
                                          uint32_t cfh_id,
                                          const std::string& key,
                                          bool exclusive) {
-  return lock_mgr_.TryLock(txn, cfh_id, key, GetEnv(), exclusive);
+  return lock_mgr_->TryLock(txn, cfh_id, key, GetEnv(), exclusive);
 }
 
 void PessimisticTransactionDB::UnLock(PessimisticTransaction* txn,
                                       const LockTracker& keys) {
-  lock_mgr_.UnLock(txn, keys, GetEnv());
+  lock_mgr_->UnLock(txn, keys, GetEnv());
 }
 
 void PessimisticTransactionDB::UnLock(PessimisticTransaction* txn,
                                       uint32_t cfh_id, const std::string& key) {
-  lock_mgr_.UnLock(txn, cfh_id, key, GetEnv());
+  lock_mgr_->UnLock(txn, cfh_id, key, GetEnv());
 }
 
 // Used when wrapping DB write operations in a transaction
@@ -597,17 +608,16 @@ void PessimisticTransactionDB::GetAllPreparedTransactions(
   }
 }
 
-TransactionLockMgr::LockStatusData
-PessimisticTransactionDB::GetLockStatusData() {
-  return lock_mgr_.GetLockStatusData();
+BaseLockMgr::LockStatusData PessimisticTransactionDB::GetLockStatusData() {
+  return lock_mgr_->GetLockStatusData();
 }
 
 std::vector<DeadlockPath> PessimisticTransactionDB::GetDeadlockInfoBuffer() {
-  return lock_mgr_.GetDeadlockInfoBuffer();
+  return lock_mgr_->GetDeadlockInfoBuffer();
 }
 
 void PessimisticTransactionDB::SetDeadlockInfoBufferSize(uint32_t target_size) {
-  lock_mgr_.Resize(target_size);
+  lock_mgr_->Resize(target_size);
 }
 
 void PessimisticTransactionDB::RegisterTransaction(Transaction* txn) {

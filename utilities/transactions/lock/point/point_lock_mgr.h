@@ -6,9 +6,9 @@
 #pragma once
 #ifndef ROCKSDB_LITE
 
+#include <memory>
 #include <string>
 #include <unordered_map>
-#include <memory>
 #include <utility>
 #include <vector>
 
@@ -17,29 +17,16 @@
 #include "util/autovector.h"
 #include "util/hash_map.h"
 #include "util/thread_local.h"
+#include "utilities/transactions/lock/lock_mgr.h"
+#include "utilities/transactions/lock/lock_tracker.h"
+#include "utilities/transactions/lock/point/point_lock_tracker.h"
 #include "utilities/transactions/pessimistic_transaction.h"
 
 namespace ROCKSDB_NAMESPACE {
 
-class ColumnFamilyHandle;
 struct LockInfo;
 struct LockMap;
 struct LockMapStripe;
-
-struct DeadlockInfoBuffer {
- private:
-  std::vector<DeadlockPath> paths_buffer_;
-  uint32_t buffer_idx_;
-  std::mutex paths_buffer_mutex_;
-  std::vector<DeadlockPath> Normalize();
-
- public:
-  explicit DeadlockInfoBuffer(uint32_t n_latest_dlocks)
-      : paths_buffer_(n_latest_dlocks), buffer_idx_(0) {}
-  void AddNewPath(DeadlockPath path);
-  void Resize(uint32_t target_size);
-  std::vector<DeadlockPath> PrepareBuffer();
-};
 
 struct TrackedTrxInfo {
   autovector<TransactionID> m_neighbors;
@@ -48,10 +35,10 @@ struct TrackedTrxInfo {
   std::string m_waiting_key;
 };
 
-class Slice;
 class PessimisticTransactionDB;
 
-class TransactionLockMgr {
+// Point lock manager
+class TransactionLockMgr : public BaseLockMgr {
  public:
   TransactionLockMgr(TransactionDB* txn_db, size_t default_num_stripes,
                      int64_t max_num_locks, uint32_t max_num_deadlocks,
@@ -62,13 +49,17 @@ class TransactionLockMgr {
 
   ~TransactionLockMgr();
 
+  LockTrackerFactory* getLockTrackerFactory() override {
+    return &PointLockTrackerFactory::instance;
+  }
+
   // Creates a new LockMap for this column family.  Caller should guarantee
   // that this column family does not already exist.
-  void AddColumnFamily(uint32_t column_family_id);
+  void AddColumnFamily(const ColumnFamilyHandle* cfh);
 
   // Deletes the LockMap for this column family.  Caller should guarantee that
   // this column family is no longer in use.
-  void RemoveColumnFamily(uint32_t column_family_id);
+  void RemoveColumnFamily(const ColumnFamilyHandle* cfh);
 
   // Attempt to lock key.  If OK status is returned, the caller is responsible
   // for calling UnLock() on this key.
@@ -82,10 +73,9 @@ class TransactionLockMgr {
   void UnLock(PessimisticTransaction* txn, uint32_t column_family_id,
               const std::string& key, Env* env);
 
-  using LockStatusData = std::unordered_multimap<uint32_t, KeyLockInfo>;
-  LockStatusData GetLockStatusData();
-  std::vector<DeadlockPath> GetDeadlockInfoBuffer();
-  void Resize(uint32_t);
+  LockStatusData GetLockStatusData() override;
+  std::vector<DeadlockPath> GetDeadlockInfoBuffer() override;
+  void Resize(uint32_t) override;
 
  private:
   PessimisticTransactionDB* txn_db_impl_;
