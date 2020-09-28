@@ -55,11 +55,11 @@ class TransactionLockMgr : public BaseLockMgr {
 
   // Creates a new LockMap for this column family.  Caller should guarantee
   // that this column family does not already exist.
-  void AddColumnFamily(const ColumnFamilyHandle* cfh);
+  void AddColumnFamily(const ColumnFamilyHandle* cfh) override;
 
   // Deletes the LockMap for this column family.  Caller should guarantee that
   // this column family is no longer in use.
-  void RemoveColumnFamily(const ColumnFamilyHandle* cfh);
+  void RemoveColumnFamily(const ColumnFamilyHandle* cfh) override;
 
   // Attempt to lock key.  If OK status is returned, the caller is responsible
   // for calling UnLock() on this key.
@@ -69,9 +69,9 @@ class TransactionLockMgr : public BaseLockMgr {
   // Unlock a key locked by TryLock().  txn must be the same Transaction that
   // locked this key.
   void UnLock(const PessimisticTransaction* txn, const LockTracker& tracker,
-              Env* env);
+              Env* env) override;
   void UnLock(PessimisticTransaction* txn, uint32_t column_family_id,
-              const std::string& key, Env* env);
+              const std::string& key, Env* env) override;
 
   LockStatusData GetLockStatusData() override;
   std::vector<DeadlockPath> GetDeadlockInfoBuffer() override;
