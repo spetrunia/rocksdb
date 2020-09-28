@@ -40,8 +40,9 @@ PessimisticTransactionDB::PessimisticTransactionDB(
 void PessimisticTransactionDB::init_lock_manager() {
   if (txn_db_options_.lock_mgr_handle) {
     // A custom lock manager was provided in options
+    auto mgr = txn_db_options_.lock_mgr_handle->getLockManager();
     lock_mgr_ =
-        std::dynamic_pointer_cast<BaseLockMgr>(txn_db_options_.lock_mgr_handle);
+        std::shared_ptr<BaseLockMgr>(txn_db_options_.lock_mgr_handle, mgr);
   } else {
     // Use point lock manager by default
     std::shared_ptr<TransactionDBMutexFactory> mutex_factory =
