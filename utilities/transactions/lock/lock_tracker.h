@@ -30,10 +30,6 @@ struct PointLockRequest {
   bool exclusive = true;
 };
 
-// Temporary. Remove this when Range Locking patch is in and
-// there is a real range endpoint definition available
-struct Endpoint {};
-
 // Request for locking a range of keys.
 struct RangeLockRequest {
   // The id of the key's column family.
