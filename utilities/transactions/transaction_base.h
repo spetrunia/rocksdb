@@ -318,8 +318,6 @@ class TransactionBaseImpl : public Transaction {
           new_locks_(ltf->Create()) {}
 
     SavePoint(const LockTrackerFactory* ltf) : new_locks_(ltf->Create()) {}
-
-    SavePoint(const SavePoint& s) { new_locks_ = s.new_locks_; }
   };
 
   // Records writes pending in this transaction
