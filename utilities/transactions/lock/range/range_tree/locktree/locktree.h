@@ -54,9 +54,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include <db.h>
 #include <ft/comparator.h>
-#include <toku_external_pthread.h>
-#include <toku_pthread.h>
-#include <toku_time.h>
+#include <portability/toku_external_pthread.h>
+#include <portability/toku_pthread.h>
+#include <portability/toku_time.h>
 
 #include <atomic>
 // PORT #include <ft/ft-ops.h>  // just for DICTIONARY_ID..

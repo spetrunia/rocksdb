@@ -537,7 +537,6 @@ if(WITH_FOLLY_DISTRIBUTED_MUTEX)
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR}/utilities/transactions/lock/range/range_tree)
-include_directories(${PROJECT_SOURCE_DIR}/utilities/transactions/lock/range/range_tree/portability)
 
 find_package(Threads REQUIRED)
 

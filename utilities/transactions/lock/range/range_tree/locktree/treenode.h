@@ -60,7 +60,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 // PORT: we need LTM_STATUS
 #include "ft/ft-status.h"
 #include "locktree/keyrange.h"
-#include "txn_subst.h"
+#include "portability/txn_subst.h"
 
 namespace toku {
 
