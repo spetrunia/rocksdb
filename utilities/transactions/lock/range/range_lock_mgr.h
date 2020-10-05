@@ -26,6 +26,7 @@ class RangeLockMgr : public BaseLockMgr, public RangeLockMgrHandle {
     return &RangeLockTrackerFactory::instance;
   }
   BaseLockMgr* getLockManager() override { return this; }
+  RangeLockMgr* getRangeLockMgr() override { return this; }
 
   void AddColumnFamily(const ColumnFamilyHandle* cfh) override;
   void RemoveColumnFamily(const ColumnFamilyHandle* cfh) override;

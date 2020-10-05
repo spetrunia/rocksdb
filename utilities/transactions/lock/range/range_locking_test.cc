@@ -39,7 +39,7 @@ class RangeLockingTest : public ::testing::Test {
     DestroyDB(dbname, options);
     Status s;
 
-    range_lock_mgr.reset(rocksdb::NewRangeLockManager(nullptr));
+    range_lock_mgr.reset(NewRangeLockManager(nullptr));
     txn_db_options.lock_mgr_handle = range_lock_mgr;
 
     s = TransactionDB::Open(options, txn_db_options, dbname, &db);
