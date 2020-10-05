@@ -48,7 +48,7 @@ inline void toku_external_cond_broadcast(toku_external_cond_t *cond) {
 
 inline int toku_external_cond_timedwait(toku_external_cond_t *cond,
                                         toku_external_mutex_t *mutex,
-                                        int32_t timeout_microsec) {
+                                        int64_t timeout_microsec) {
   auto res = (*cond)->WaitFor(*mutex, timeout_microsec);
   if (res.ok())
     return 0;

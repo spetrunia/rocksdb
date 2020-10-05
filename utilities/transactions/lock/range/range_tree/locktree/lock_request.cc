@@ -276,7 +276,7 @@ int lock_request::wait(uint64_t wait_time_ms, uint64_t killed_time_ms,
     }
 
     int r = toku_external_cond_timedwait(&m_wait_cond, &m_info->mutex,
-                                         (t_wait - t_now));
+                                         (int64_t)(t_wait - t_now));
     invariant(r == 0 || r == ETIMEDOUT);
 
     t_now = toku_current_time_microsec();
