@@ -29,16 +29,16 @@ void *toku_xcalloc(size_t nmemb, size_t size) { return calloc(nmemb, size); }
 // ft-ft-opts.cc:
 
 // locktree
-toku_instr_key *lock_request_m_wait_cond_key;
-toku_instr_key *manager_m_escalator_done_key;
-toku_instr_key *locktree_request_info_mutex_key;
-toku_instr_key *locktree_request_info_retry_mutex_key;
-toku_instr_key *locktree_request_info_retry_cv_key;
+toku_instr_key lock_request_m_wait_cond_key;
+toku_instr_key manager_m_escalator_done_key;
+toku_instr_key locktree_request_info_mutex_key;
+toku_instr_key locktree_request_info_retry_mutex_key;
+toku_instr_key locktree_request_info_retry_cv_key;
 
-toku_instr_key *treenode_mutex_key;
-toku_instr_key *manager_mutex_key;
-toku_instr_key *manager_escalation_mutex_key;
-toku_instr_key *manager_escalator_mutex_key;
+toku_instr_key treenode_mutex_key;
+toku_instr_key manager_mutex_key;
+toku_instr_key manager_escalation_mutex_key;
+toku_instr_key manager_escalator_mutex_key;
 
 // portability/memory.cc
 size_t toku_memory_footprint(void *, size_t touched) { return touched; }

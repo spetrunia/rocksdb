@@ -74,7 +74,7 @@ void treenode::init(const comparator *cmp) {
   toku_pthread_mutexattr_t attr;
   toku_mutexattr_init(&attr);
   toku_mutexattr_settype(&attr, TOKU_MUTEX_ADAPTIVE);
-  toku_mutex_init(*treenode_mutex_key, &m_mutex, &attr);
+  toku_mutex_init(treenode_mutex_key, &m_mutex, &attr);
   toku_mutexattr_destroy(&attr);
   m_left_child.set(nullptr);
   m_right_child.set(nullptr);

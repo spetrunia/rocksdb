@@ -50,7 +50,8 @@ class toku_instr_key {
                  UU(const char *name)) {}
 
   explicit toku_instr_key(UU(pfs_key_t key_id)) {}
-
+  // No-instrumentation constructor:
+  toku_instr_key() {}
   ~toku_instr_key() {}
 };
 
@@ -226,14 +227,14 @@ inline void toku_instr_rwlock_unlock(UU(toku_pthread_rwlock_t &rwlock)) {}
 #endif  // MYSQL_TOKUDB_ENGINE
 
 // Mutexes
-extern toku_instr_key *manager_escalation_mutex_key;
-extern toku_instr_key *manager_escalator_mutex_key;
-extern toku_instr_key *manager_mutex_key;
-extern toku_instr_key *treenode_mutex_key;
-extern toku_instr_key *locktree_request_info_mutex_key;
-extern toku_instr_key *locktree_request_info_retry_mutex_key;
+extern toku_instr_key manager_escalation_mutex_key;
+extern toku_instr_key manager_escalator_mutex_key;
+extern toku_instr_key manager_mutex_key;
+extern toku_instr_key treenode_mutex_key;
+extern toku_instr_key locktree_request_info_mutex_key;
+extern toku_instr_key locktree_request_info_retry_mutex_key;
 
 // condition vars
-extern toku_instr_key *lock_request_m_wait_cond_key;
-extern toku_instr_key *locktree_request_info_retry_cv_key;
-extern toku_instr_key *manager_m_escalator_done_key;
+extern toku_instr_key lock_request_m_wait_cond_key;
+extern toku_instr_key locktree_request_info_retry_cv_key;
+extern toku_instr_key manager_m_escalator_done_key; // unused

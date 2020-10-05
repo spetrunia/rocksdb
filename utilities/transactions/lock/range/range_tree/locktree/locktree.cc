@@ -104,9 +104,9 @@ void lt_lock_request_info::init(toku_external_mutex_factory_t mutex_factory) {
   retry_want = retry_done = 0;
   ZERO_STRUCT(counters);
   ZERO_STRUCT(retry_mutex);
-  toku_mutex_init(*locktree_request_info_retry_mutex_key, &retry_mutex,
+  toku_mutex_init(locktree_request_info_retry_mutex_key, &retry_mutex,
                   nullptr);
-  toku_cond_init(*locktree_request_info_retry_cv_key, &retry_cv, nullptr);
+  toku_cond_init(locktree_request_info_retry_cv_key, &retry_cv, nullptr);
   running_retry = false;
 
   TOKU_VALGRIND_HG_DISABLE_CHECKING(&pending_is_empty,
