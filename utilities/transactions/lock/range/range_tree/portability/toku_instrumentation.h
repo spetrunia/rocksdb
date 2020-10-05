@@ -237,4 +237,4 @@ extern toku_instr_key locktree_request_info_retry_mutex_key;
 // condition vars
 extern toku_instr_key lock_request_m_wait_cond_key;
 extern toku_instr_key locktree_request_info_retry_cv_key;
-extern toku_instr_key manager_m_escalator_done_key; // unused
+extern toku_instr_key manager_m_escalator_done_key;  // unused
