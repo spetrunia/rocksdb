@@ -23,8 +23,6 @@ void *toku_xmemdup(const void *v, size_t len) {
   return p;
 }
 
-void *toku_realloc(void *p, size_t size) { return realloc(p, size); }
-
 // TODO: what are the X-functions? Xcalloc, Xrealloc?
 void *toku_xcalloc(size_t nmemb, size_t size) { return calloc(nmemb, size); }
 

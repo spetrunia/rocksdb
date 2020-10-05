@@ -102,30 +102,6 @@ void toku_sdbt_cleanup(struct simple_dbt *sdbt) {
   memset(sdbt, 0, sizeof(*sdbt));
 }
 
-static inline int sdbt_realloc(struct simple_dbt *sdbt) {
-  void *new_data = toku_realloc(sdbt->data, sdbt->len);
-  int r;
-  if (new_data == NULL) {
-    r = get_error_errno();
-  } else {
-    sdbt->data = new_data;
-    r = 0;
-  }
-  return r;
-}
-
-static inline int dbt_realloc(DBT *dbt) {
-  void *new_data = toku_realloc(dbt->data, dbt->ulen);
-  int r;
-  if (new_data == NULL) {
-    r = get_error_errno();
-  } else {
-    dbt->data = new_data;
-    r = 0;
-  }
-  return r;
-}
-
 const DBT *toku_dbt_positive_infinity(void) {
   static DBT positive_infinity_dbt = {
       .data = 0, .size = 0, .ulen = 0, .flags = 0};  // port

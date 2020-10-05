@@ -74,14 +74,6 @@ void *toku_xmalloc_aligned(size_t alignment, size_t size)
 // Requires: alignment is a power of two.
 
 void toku_free(void *) __attribute__((__visibility__("default")));
-void *toku_realloc(void *, size_t size)
-    __attribute__((__visibility__("default")));
-void *toku_realloc_aligned(size_t alignment, void *p, size_t size)
-    __attribute__((__visibility__("default")));
-// Effect: Perform a os_realloc_aligned(alignment, p, size) which has the
-// additional property that the returned pointer is a multiple of ALIGNMENT.
-//  If the malloc_aligned function has been set then call it instead.
-// Requires: alignment is a power of two.
 
 size_t toku_malloc_usable_size(void *p)
     __attribute__((__visibility__("default")));
@@ -110,10 +102,6 @@ size_t toku_malloc_usable_size(void *p)
 #define CALLOC_N(n, v) CAST_FROM_VOIDP(v, toku_calloc((n), sizeof(*v)))
 
 #define CALLOC(v) CALLOC_N(1, v)
-
-#define REALLOC_N(n, v) CAST_FROM_VOIDP(v, toku_realloc(v, (n) * sizeof(*v)))
-#define REALLOC_N_ALIGNED(align, n, v) \
-  CAST_FROM_VOIDP(v, toku_realloc_aligned((align), v, (n) * sizeof(*v)))
 
 // XMALLOC macros are like MALLOC except they abort if the operation fails
 #define XMALLOC(v) CAST_FROM_VOIDP(v, toku_xmalloc(sizeof(*v)))
