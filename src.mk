@@ -250,6 +250,18 @@ LIB_SOURCES =                                                   \
   utilities/trace/file_trace_reader_writer.cc                   \
   utilities/transactions/lock/point/point_lock_tracker.cc       \
   utilities/transactions/lock/point/point_lock_mgr.cc           \
+  utilities/transactions/lock/range/range_lock_mgr.cc           \
+  utilities/transactions/lock/range/range_lock_tracker.cc       \
+  utilities/transactions/lock/range/range_tree/locktree/keyrange.cc     \
+  utilities/transactions/lock/range/range_tree/locktree/range_buffer.cc \
+  utilities/transactions/lock/range/range_tree/locktree/wfg.cc          \
+  utilities/transactions/lock/range/range_tree/locktree/lock_request.cc \
+  utilities/transactions/lock/range/range_tree/locktree/locktree.cc     \
+  utilities/transactions/lock/range/range_tree/locktree/manager.cc      \
+  utilities/transactions/lock/range/range_tree/locktree/txnid_set.cc    \
+  utilities/transactions/lock/range/range_tree/util/dbt.cc              \
+  utilities/transactions/lock/range/range_tree/util/memarena.cc         \
+  utilities/transactions/lock/range/range_tree/standalone_port.cc       \
   utilities/transactions/optimistic_transaction.cc              \
   utilities/transactions/optimistic_transaction_db_impl.cc      \
   utilities/transactions/pessimistic_transaction.cc             \
@@ -514,6 +526,7 @@ TEST_MAIN_SOURCES =                                                     \
   utilities/simulator_cache/sim_cache_test.cc                           \
   utilities/table_properties_collectors/compact_on_deletion_collector_test.cc  \
   utilities/transactions/optimistic_transaction_test.cc                 \
+  utilities/transactions/lock/range/range_locking_test.cc               \
   utilities/transactions/transaction_test.cc                            \
   utilities/transactions/transaction_lock_mgr_test.cc                   \
   utilities/transactions/write_prepared_transaction_test.cc             \

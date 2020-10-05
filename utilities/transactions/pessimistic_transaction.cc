@@ -95,7 +95,7 @@ void PessimisticTransaction::Initialize(const TransactionOptions& txn_options) {
 }
 
 PessimisticTransaction::~PessimisticTransaction() {
-  txn_db_impl_->UnLock(this, *tracked_locks_);
+  txn_db_impl_->UnLock(this, *tracked_locks_, /*all_keys_hint=*/true);
   if (expiration_time_ > 0) {
     txn_db_impl_->RemoveExpirableTransaction(txn_id_);
   }
@@ -105,7 +105,7 @@ PessimisticTransaction::~PessimisticTransaction() {
 }
 
 void PessimisticTransaction::Clear() {
-  txn_db_impl_->UnLock(this, *tracked_locks_);
+  txn_db_impl_->UnLock(this, *tracked_locks_, /*all_keys_hint=*/true);
   TransactionBaseImpl::Clear();
 }
 
@@ -168,7 +168,7 @@ Status PessimisticTransaction::CommitBatch(WriteBatch* batch) {
     s = Status::InvalidArgument("Transaction is not in state for commit.");
   }
 
-  txn_db_impl_->UnLock(this, *keys_to_unlock);
+  txn_db_impl_->UnLock(this, *keys_to_unlock, /*all_keys_hint=*/true);
 
   return s;
 }
@@ -559,9 +559,20 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
   }
   uint32_t cfh_id = GetColumnFamilyID(column_family);
   std::string key_str = key.ToString();
-  PointLockStatus status = tracked_locks_->GetPointLockStatus(cfh_id, key_str);
-  bool previously_locked = status.locked;
-  bool lock_upgrade = previously_locked && exclusive && !status.exclusive;
+
+  PointLockStatus status;
+  bool lock_upgrade;
+  bool previously_locked;
+  if (tracked_locks_->IsPointLockSupported()) {
+    status = tracked_locks_->GetPointLockStatus(cfh_id, key_str);
+    previously_locked = status.locked;
+    lock_upgrade = previously_locked && exclusive && !status.exclusive;
+  } else {
+    // If the record is tracked, we can assume it was locked, too.
+    previously_locked = assume_tracked;
+    status.locked = false;
+    lock_upgrade = false;
+  }
 
   // Lock this key if this transactions hasn't already locked it or we require
   // an upgrade.
@@ -580,7 +591,8 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
   SequenceNumber tracked_at_seq =
       status.locked ? status.seq : kMaxSequenceNumber;
   if (!do_validate || snapshot_ == nullptr) {
-    if (assume_tracked && !previously_locked) {
+    if (assume_tracked && !previously_locked &&
+        tracked_locks_->IsPointLockSupported()) {
       s = Status::InvalidArgument(
           "assume_tracked is set but it is not tracked yet");
     }
@@ -637,15 +649,33 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
       TrackKey(cfh_id, key_str, tracked_at_seq, read_only, exclusive);
     } else {
 #ifndef NDEBUG
-      PointLockStatus lock_status =
-          tracked_locks_->GetPointLockStatus(cfh_id, key_str);
-      assert(lock_status.locked);
-      assert(lock_status.seq <= tracked_at_seq);
-      assert(lock_status.exclusive == exclusive);
+      if (tracked_locks_->IsPointLockSupported()) {
+        PointLockStatus lock_status =
+            tracked_locks_->GetPointLockStatus(cfh_id, key_str);
+        assert(lock_status.locked);
+        assert(lock_status.seq <= tracked_at_seq);
+        assert(lock_status.exclusive == exclusive);
+      }
 #endif
     }
   }
 
+  return s;
+}
+
+Status PessimisticTransaction::GetRangeLock(ColumnFamilyHandle* column_family,
+                                            const Endpoint& start_endp,
+                                            const Endpoint& end_endp) {
+  ColumnFamilyHandle* cfh =
+      column_family ? column_family : db_impl_->DefaultColumnFamily();
+  uint32_t cfh_id = GetColumnFamilyID(cfh);
+
+  Status s = txn_db_impl_->TryRangeLock(this, cfh_id, start_endp, end_endp);
+
+  if (s.ok()) {
+    RangeLockRequest req{cfh_id, start_endp, end_endp};
+    tracked_locks_->Track(req);
+  }
   return s;
 }
 

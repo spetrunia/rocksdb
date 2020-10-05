@@ -323,12 +323,15 @@ class TransactionBaseImpl : public Transaction {
   // Records writes pending in this transaction
   WriteBatchWithIndex write_batch_;
 
- public:
   // For Pessimistic Transactions this is the set of acquired locks.
   // Optimistic Transactions will keep note the requested locks (not actually
   // locked), and do conflict checking until commit time based on the tracked
   // lock requests.
-
+  //
+  // Declared as public because
+  //  - RangeLocking's lock escalation may replace it
+  //  - RangeLockMgr::UnLockAll needs access to it
+ public:
   std::unique_ptr<LockTracker> tracked_locks_;
 
  protected:

@@ -43,6 +43,7 @@ void PessimisticTransactionDB::init_lock_manager() {
     auto mgr = txn_db_options_.lock_mgr_handle->getLockManager();
     lock_mgr_ =
         std::shared_ptr<BaseLockMgr>(txn_db_options_.lock_mgr_handle, mgr);
+    range_lock_mgr_ = dynamic_cast<RangeLockMgr*>(lock_mgr_.get());
   } else {
     // Use point lock manager by default
     std::shared_ptr<TransactionDBMutexFactory> mutex_factory =
@@ -54,6 +55,7 @@ void PessimisticTransactionDB::init_lock_manager() {
         this, txn_db_options_.num_stripes, txn_db_options_.max_num_locks,
         txn_db_options_.max_num_deadlocks, mutex_factory);
     lock_mgr_.reset(lock_mgr);
+    range_lock_mgr_ = nullptr;
   }
   lock_mgr_->init(this);
 }
@@ -413,8 +415,24 @@ Status PessimisticTransactionDB::TryLock(PessimisticTransaction* txn,
   return lock_mgr_->TryLock(txn, cfh_id, key, GetEnv(), exclusive);
 }
 
+Status PessimisticTransactionDB::TryRangeLock(PessimisticTransaction* txn,
+                                              uint32_t cfh_id,
+                                              const Endpoint& start_endp,
+                                              const Endpoint& end_endp) {
+  if (range_lock_mgr_) {
+    return range_lock_mgr_->TryRangeLock(txn, cfh_id, start_endp, end_endp,
+                                         /*exclusive=*/true);
+  } else
+    return Status::NotSupported();
+}
+
 void PessimisticTransactionDB::UnLock(PessimisticTransaction* txn,
-                                      const LockTracker& keys) {
+                                      const LockTracker& keys,
+                                      bool all_keys_hint) {
+  if (all_keys_hint && range_lock_mgr_) {
+    range_lock_mgr_->UnLockAll(txn, GetEnv());
+    return;
+  }
   lock_mgr_->UnLock(txn, keys, GetEnv());
 }
 

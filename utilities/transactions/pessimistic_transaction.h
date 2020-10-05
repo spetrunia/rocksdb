@@ -116,11 +116,9 @@ class PessimisticTransaction : public TransactionBaseImpl {
 
   int64_t GetDeadlockDetectDepth() const { return deadlock_detect_depth_; }
 
-  virtual Status GetRangeLock(ColumnFamilyHandle*, const Endpoint&,
-                              const Endpoint&) override {
-    // This is a placeholder for Range Locking implementation
-    return Status::NotSupported();
-  }
+  virtual Status GetRangeLock(ColumnFamilyHandle* column_family,
+                              const Endpoint& start_key,
+                              const Endpoint& end_key) override;
 
  protected:
   // Refer to

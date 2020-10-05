@@ -13,6 +13,7 @@
 #include "test_util/testutil.h"
 #include "utilities/transactions/lock/lock_mgr.h"
 #include "utilities/transactions/lock/point/point_lock_mgr.h"
+#include "utilities/transactions/lock/range/range_lock_mgr.h"
 #include "utilities/transactions/transaction_db_mutex_impl.h"
 
 namespace ROCKSDB_NAMESPACE {
@@ -29,11 +30,28 @@ class TransactionLockMgrTest : public testing::Test {
     opt.create_if_missing = true;
     TransactionDBOptions txn_opt;
     txn_opt.transaction_lock_timeout = 0;
+
+    if (use_range_locking) {
+      /*
+        With Range Locking, we must use the same lock manager object that the
+        TransactionDB is using.
+        Create it here and pass it to the database through lock_mgr_handle.
+      */
+      locker_.reset(new RangeLockMgr(mutex_factory_));
+      range_lock_mgr = std::dynamic_pointer_cast<RangeLockMgrHandle>(locker_);
+      txn_opt.lock_mgr_handle = range_lock_mgr;
+    }
+
     ASSERT_OK(TransactionDB::Open(opt, txn_opt, db_dir_, &db_));
 
-    locker_.reset(
-        new TransactionLockMgr(db_, txn_opt.num_stripes, txn_opt.max_num_locks,
-                               txn_opt.max_num_deadlocks, mutex_factory_));
+    if (!use_range_locking) {
+      // If not using range locking, this test creates a separate lock manager
+      // object (right, NOT the one TransactionDB is using!), and runs tests on
+      // that.
+      locker_ = std::shared_ptr<TransactionLockMgr>(new TransactionLockMgr(
+          db_, txn_opt.num_stripes, txn_opt.max_num_locks,
+          txn_opt.max_num_deadlocks, mutex_factory_));
+    }
   }
 
   void TearDown() override {
@@ -49,12 +67,29 @@ class TransactionLockMgrTest : public testing::Test {
 
  protected:
   Env* env_;
-  std::unique_ptr<TransactionLockMgr> locker_;
+  std::shared_ptr<BaseLockMgr> locker_;
+  bool use_range_locking;
+  std::shared_ptr<rocksdb::RangeLockMgrHandle> range_lock_mgr;
+
+  // With Range Locking, functions like GetLockStatusData() return range
+  // endpoints, not the keys themselves. This function extracts the key.
+  std::string key_value(const std::string& s) {
+    if (use_range_locking)
+      return s.substr(1);
+    else
+      return s;
+  }
 
  private:
   std::string db_dir_;
   std::shared_ptr<TransactionDBMutexFactory> mutex_factory_;
   TransactionDB* db_;
+};
+
+class AnyLockManagerTest : public TransactionLockMgrTest,
+                           public testing::WithParamInterface<bool> {
+ public:
+  AnyLockManagerTest() { use_range_locking = GetParam(); }
 };
 
 class MockColumnFamily : public ColumnFamilyHandle {
@@ -82,6 +117,9 @@ MockColumnFamily cf_1024(1024);
 MockColumnFamily cf_2048(2048);
 
 MockColumnFamily cf_1(1);
+
+// This test is not applicable for Range Lock manager as Range Lock Manager
+// operates on Column Families, not their ids.
 TEST_F(TransactionLockMgrTest, LockNonExistingColumnFamily) {
   locker_->RemoveColumnFamily(&cf_1024);
   auto txn = NewTxn();
@@ -91,7 +129,7 @@ TEST_F(TransactionLockMgrTest, LockNonExistingColumnFamily) {
   delete txn;
 }
 
-TEST_F(TransactionLockMgrTest, LockStatus) {
+TEST_P(AnyLockManagerTest, LockStatus) {
   locker_->AddColumnFamily(&cf_1024);
   locker_->AddColumnFamily(&cf_2048);
 
@@ -109,12 +147,13 @@ TEST_F(TransactionLockMgrTest, LockStatus) {
     ASSERT_EQ(s.count(cf_id), 2u);
     auto range = s.equal_range(cf_id);
     for (auto it = range.first; it != range.second; it++) {
-      ASSERT_TRUE(it->second.key == "k1" || it->second.key == "k2");
-      if (it->second.key == "k1") {
+      ASSERT_TRUE(key_value(it->second.key) == "k1" ||
+                  key_value(it->second.key) == "k2");
+      if (key_value(it->second.key) == "k1") {
         ASSERT_EQ(it->second.exclusive, true);
         ASSERT_EQ(it->second.ids.size(), 1u);
         ASSERT_EQ(it->second.ids[0], txn1->GetID());
-      } else if (it->second.key == "k2") {
+      } else if (key_value(it->second.key) == "k2") {
         ASSERT_EQ(it->second.exclusive, false);
         ASSERT_EQ(it->second.ids.size(), 1u);
         ASSERT_EQ(it->second.ids[0], txn2->GetID());
@@ -122,11 +161,17 @@ TEST_F(TransactionLockMgrTest, LockStatus) {
     }
   }
 
+  // Cleanup
+  locker_->UnLock(txn1, 1024, "k1", env_);
+  locker_->UnLock(txn1, 2048, "k1", env_);
+  locker_->UnLock(txn2, 1024, "k2", env_);
+  locker_->UnLock(txn2, 2048, "k2", env_);
+
   delete txn1;
   delete txn2;
 }
 
-TEST_F(TransactionLockMgrTest, UnlockExclusive) {
+TEST_P(AnyLockManagerTest, UnlockExclusive) {
   locker_->AddColumnFamily(&cf_1);
 
   auto txn1 = NewTxn();
@@ -136,11 +181,14 @@ TEST_F(TransactionLockMgrTest, UnlockExclusive) {
   auto txn2 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn2, 1, "k", env_, true));
 
+  // Cleanup
+  locker_->UnLock(txn2, 1, "k", env_);
+
   delete txn1;
   delete txn2;
 }
 
-TEST_F(TransactionLockMgrTest, UnlockShared) {
+TEST_P(AnyLockManagerTest, UnlockShared) {
   locker_->AddColumnFamily(&cf_1);
 
   auto txn1 = NewTxn();
@@ -150,48 +198,65 @@ TEST_F(TransactionLockMgrTest, UnlockShared) {
   auto txn2 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn2, 1, "k", env_, true));
 
+  // Cleanup
+  locker_->UnLock(txn2, 1, "k", env_);
+
   delete txn1;
   delete txn2;
 }
 
-TEST_F(TransactionLockMgrTest, ReentrantExclusiveLock) {
+TEST_P(AnyLockManagerTest, ReentrantExclusiveLock) {
   // Tests that a txn can acquire exclusive lock on the same key repeatedly.
   locker_->AddColumnFamily(&cf_1);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
+
+  // Cleanup
+  locker_->UnLock(txn, 1, "k", env_);
+
   delete txn;
 }
 
-TEST_F(TransactionLockMgrTest, ReentrantSharedLock) {
+TEST_P(AnyLockManagerTest, ReentrantSharedLock) {
   // Tests that a txn can acquire shared lock on the same key repeatedly.
   locker_->AddColumnFamily(&cf_1);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
+
+  // Cleanup
+  locker_->UnLock(txn, 1, "k", env_);
+
   delete txn;
 }
 
-TEST_F(TransactionLockMgrTest, LockUpgrade) {
+TEST_P(AnyLockManagerTest, LockUpgrade) {
   // Tests that a txn can upgrade from a shared lock to an exclusive lock.
   locker_->AddColumnFamily(&cf_1);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
+
+  // Cleanup
+  locker_->UnLock(txn, 1, "k", env_);
   delete txn;
 }
 
-TEST_F(TransactionLockMgrTest, LockDowngrade) {
+TEST_P(AnyLockManagerTest, LockDowngrade) {
   // Tests that a txn can acquire a shared lock after acquiring an exclusive
   // lock on the same key.
   locker_->AddColumnFamily(&cf_1);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
+
+  // Cleanup
+  locker_->UnLock(txn, 1, "k", env_);
   delete txn;
 }
 
-TEST_F(TransactionLockMgrTest, LockConflict) {
+TEST_P(AnyLockManagerTest, LockConflict) {
   // Tests that lock conflicts lead to lock timeout.
   locker_->AddColumnFamily(&cf_1);
   auto txn1 = NewTxn();
@@ -218,15 +283,22 @@ TEST_F(TransactionLockMgrTest, LockConflict) {
     ASSERT_TRUE(s.IsTimedOut());
   }
 
+  // Cleanup
+  locker_->UnLock(txn1, 1, "k1", env_);
+  locker_->UnLock(txn1, 1, "k2", env_);
+
   delete txn1;
   delete txn2;
 }
 
-port::Thread BlockUntilWaitingTxn(std::function<void()> f) {
+port::Thread BlockUntilWaitingTxn(bool use_range_locking,
+                                  std::function<void()> f) {
   std::atomic<bool> reached(false);
+  const char* sync_point_name =
+      use_range_locking ? "RangeLockMgr::TryRangeLock:WaitingTxn"
+                        : "TransactionLockMgr::AcquireWithTimeout:WaitingTxn";
   ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->SetCallBack(
-      "TransactionLockMgr::AcquireWithTimeout:WaitingTxn",
-      [&](void* /*arg*/) { reached.store(true); });
+      sync_point_name, [&](void* /*arg*/) { reached.store(true); });
   ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->EnableProcessing();
 
   port::Thread t(f);
@@ -240,7 +312,7 @@ port::Thread BlockUntilWaitingTxn(std::function<void()> f) {
   return t;
 }
 
-TEST_F(TransactionLockMgrTest, SharedLocks) {
+TEST_P(AnyLockManagerTest, SharedLocks) {
   // Tests that shared locks can be concurrently held by multiple transactions.
   locker_->AddColumnFamily(&cf_1);
   auto txn1 = NewTxn();
@@ -249,9 +321,13 @@ TEST_F(TransactionLockMgrTest, SharedLocks) {
   ASSERT_OK(locker_->TryLock(txn2, 1, "k", env_, false));
   delete txn1;
   delete txn2;
+
+  // Cleanup
+  locker_->UnLock(txn1, 1, "k", env_);
+  locker_->UnLock(txn2, 1, "k", env_);
 }
 
-TEST_F(TransactionLockMgrTest, Deadlock) {
+TEST_P(AnyLockManagerTest, Deadlock) {
   // Tests that deadlock can be detected.
   // Deadlock scenario:
   // txn1 exclusively locks k1, and wants to lock k2;
@@ -267,7 +343,7 @@ TEST_F(TransactionLockMgrTest, Deadlock) {
   ASSERT_OK(locker_->TryLock(txn2, 1, "k2", env_, true));
 
   // txn1 tries to lock k2, will block forever.
-  port::Thread t = BlockUntilWaitingTxn([&]() {
+  port::Thread t = BlockUntilWaitingTxn(use_range_locking, [&]() {
     // block because txn2 is holding a lock on k2.
     locker_->TryLock(txn1, 1, "k2", env_, true);
   });
@@ -286,19 +362,25 @@ TEST_F(TransactionLockMgrTest, Deadlock) {
   ASSERT_EQ(deadlocks[0].m_txn_id, txn1->GetID());
   ASSERT_EQ(deadlocks[0].m_cf_id, 1u);
   ASSERT_TRUE(deadlocks[0].m_exclusive);
-  ASSERT_EQ(deadlocks[0].m_waiting_key, "k2");
+  ASSERT_EQ(key_value(deadlocks[0].m_waiting_key), "k2");
 
   ASSERT_EQ(deadlocks[1].m_txn_id, txn2->GetID());
   ASSERT_EQ(deadlocks[1].m_cf_id, 1u);
   ASSERT_TRUE(deadlocks[1].m_exclusive);
-  ASSERT_EQ(deadlocks[1].m_waiting_key, "k1");
+  ASSERT_EQ(key_value(deadlocks[1].m_waiting_key), "k1");
 
   locker_->UnLock(txn2, 1, "k2", env_);
   t.join();
 
+  // Cleanup
+  locker_->UnLock(txn1, 1, "k1", env_);
+  locker_->UnLock(txn1, 1, "k2", env_);
   delete txn2;
   delete txn1;
 }
+
+// This test doesn't work with Range Lock Manager, because Range Lock Manager
+// doesn't support deadlock_detect_depth.
 
 TEST_F(TransactionLockMgrTest, DeadlockDepthExceeded) {
   // Tests that when detecting deadlock, if the detection depth is exceeded,
@@ -323,7 +405,7 @@ TEST_F(TransactionLockMgrTest, DeadlockDepthExceeded) {
   // it must have another txn waiting on it, which is txn4 in this case.
   ASSERT_OK(locker_->TryLock(txn1, 1, "k1", env_, true));
 
-  port::Thread t1 = BlockUntilWaitingTxn([&]() {
+  port::Thread t1 = BlockUntilWaitingTxn(false, [&]() {
     ASSERT_OK(locker_->TryLock(txn2, 1, "k2", env_, true));
     // block because txn1 is holding a lock on k1.
     locker_->TryLock(txn2, 1, "k1", env_, true);
@@ -331,7 +413,7 @@ TEST_F(TransactionLockMgrTest, DeadlockDepthExceeded) {
 
   ASSERT_OK(locker_->TryLock(txn3, 1, "k3", env_, true));
 
-  port::Thread t2 = BlockUntilWaitingTxn([&]() {
+  port::Thread t2 = BlockUntilWaitingTxn(false, [&]() {
     // block because txn3 is holding a lock on k1.
     locker_->TryLock(txn4, 1, "k3", env_, true);
   });
@@ -354,6 +436,8 @@ TEST_F(TransactionLockMgrTest, DeadlockDepthExceeded) {
   delete txn2;
   delete txn1;
 }
+
+INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest, ::testing::Bool());
 
 }  // namespace ROCKSDB_NAMESPACE
 
