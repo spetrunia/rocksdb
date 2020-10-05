@@ -68,7 +68,7 @@ class TransactionLockMgrTest : public testing::Test {
  protected:
   Env* env_;
   std::shared_ptr<BaseLockMgr> locker_;
-  bool use_range_locking;
+  bool use_range_locking = false;
   std::shared_ptr<RangeLockMgrHandle> range_lock_mgr;
 
   // With Range Locking, functions like GetLockStatusData() return range
