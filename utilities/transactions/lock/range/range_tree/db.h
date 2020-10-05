@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-typedef struct __toku_db DB;
 typedef struct __toku_dbt DBT;
 
 // port: this is currently not used
@@ -62,21 +61,6 @@ typedef struct __toku_engine_status_row {
 
 /* PerconaFT specific error codes */
 #define TOKUDB_OUT_OF_LOCKS -100000
-
-typedef struct {
-  uint32_t capacity;
-  uint32_t size;
-  DBT *dbts;
-} DBT_ARRAY;
-
-DBT_ARRAY *toku_dbt_array_init(DBT_ARRAY *dbts, uint32_t size)
-    __attribute__((__visibility__("default")));
-void toku_dbt_array_destroy(DBT_ARRAY *dbts)
-    __attribute__((__visibility__("default")));
-void toku_dbt_array_destroy_shallow(DBT_ARRAY *dbts)
-    __attribute__((__visibility__("default")));
-void toku_dbt_array_resize(DBT_ARRAY *dbts, uint32_t size)
-    __attribute__((__visibility__("default")));
 
 typedef void (*lock_wait_callback)(void *arg, uint64_t requesting_txnid,
                                    uint64_t blocking_txnid);
