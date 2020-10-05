@@ -319,12 +319,13 @@ TEST_P(AnyLockManagerTest, SharedLocks) {
   auto txn2 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn1, 1, "k", env_, false));
   ASSERT_OK(locker_->TryLock(txn2, 1, "k", env_, false));
-  delete txn1;
-  delete txn2;
 
   // Cleanup
   locker_->UnLock(txn1, 1, "k", env_);
   locker_->UnLock(txn2, 1, "k", env_);
+
+  delete txn1;
+  delete txn2;
 }
 
 TEST_P(AnyLockManagerTest, Deadlock) {
