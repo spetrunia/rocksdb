@@ -1,3 +1,5 @@
+
+#ifndef ROCKSDB_LITE
 #include "utilities/transactions/lock/range/range_lock_tracker.h"
 
 #include "utilities/transactions/lock/range/range_lock_mgr.h"
@@ -57,3 +59,4 @@ void RangeLockTracker::Clear() {
 }
 
 }  // namespace ROCKSDB_NAMESPACE
+#endif  // ROCKSDB_LITE

@@ -1,3 +1,4 @@
+#ifndef ROCKSDB_LITE
 /*
   This is a dump ground to make Lock Tree work without the rest of TokuDB.
 */
@@ -127,3 +128,4 @@ int toku_keycompare(const void *key1, uint32_t key1len, const void *key2,
 int toku_builtin_compare_fun(const DBT *a, const DBT *b) {
   return toku_keycompare(a->data, a->size, b->data, b->size);
 }
+#endif  // ROCKSDB_LITE

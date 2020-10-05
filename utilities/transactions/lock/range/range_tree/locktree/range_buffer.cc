@@ -1,5 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ifndef ROCKSDB_LITE
 #ident "$Id$"
 /*======
 This file is part of PerconaFT.
@@ -258,3 +259,4 @@ void range_buffer::append_point(const DBT *key, bool is_exclusive) {
 }
 
 } /* namespace toku */
+#endif  // ROCKSDB_LITE

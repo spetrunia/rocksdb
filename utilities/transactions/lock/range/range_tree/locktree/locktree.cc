@@ -1,5 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ifndef ROCKSDB_LITE
 #ident "$Id$"
 /*======
 This file is part of PerconaFT.
@@ -991,3 +992,4 @@ int locktree::compare(const locktree *lt) const {
 DICTIONARY_ID locktree::get_dict_id() const { return m_dict_id; }
 
 } /* namespace toku */
+#endif  // ROCKSDB_LITE
