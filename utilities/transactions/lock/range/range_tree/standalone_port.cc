@@ -108,9 +108,9 @@ void LTM_STATUS_S::destroy() {
   }
 }
 
-int toku_keycompare(const void *key1, uint32_t key1len, const void *key2,
-                    uint32_t key2len) {
-  int comparelen = key1len < key2len ? key1len : key2len;
+int toku_keycompare(const void *key1, size_t key1len, const void *key2,
+                    size_t key2len) {
+  size_t comparelen = key1len < key2len ? key1len : key2len;
   int c = memcmp(key1, key2, comparelen);
   if (__builtin_expect(c != 0, 1)) {
     return c;

@@ -46,8 +46,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 typedef int (*ft_compare_func)(void *arg, const DBT *a, const DBT *b);
 
-int toku_keycompare(const void *key1, uint32_t key1len, const void *key2,
-                    uint32_t key2len);
+int toku_keycompare(const void *key1, size_t key1len, const void *key2,
+                    size_t key2len);
 
 int toku_builtin_compare_fun(const DBT *, const DBT *)
     __attribute__((__visibility__("default")));
