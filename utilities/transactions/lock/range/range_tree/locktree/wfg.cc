@@ -66,8 +66,8 @@ void wfg::create(void) { m_nodes.create(); }
 
 // Destroy the internals of the lock request graph
 void wfg::destroy(void) {
-  size_t n_nodes = m_nodes.size();
-  for (size_t i = 0; i < n_nodes; i++) {
+  uint32_t n_nodes = m_nodes.size();
+  for (uint32_t i = 0; i < n_nodes; i++) {
     node *n;
     int r = m_nodes.fetch(i, &n);
     invariant_zero(r);
@@ -95,8 +95,8 @@ bool wfg::cycle_exists_from_node(node *target, node *head,
                                  std::function<void(TXNID)> reporter) {
   bool cycle_found = false;
   head->visited = true;
-  size_t n_edges = head->edges.size();
-  for (size_t i = 0; i < n_edges && !cycle_found; i++) {
+  uint32_t n_edges = head->edges.size();
+  for (uint32_t i = 0; i < n_edges && !cycle_found; i++) {
     TXNID edge_id = head->edges.get(i);
     if (target->txnid == edge_id) {
       cycle_found = true;
@@ -148,8 +148,8 @@ void wfg::apply_edges(TXNID txnid,
   node *n = find_node(txnid);
   if (n) {
     int r = 0;
-    size_t n_edges = n->edges.size();
-    for (size_t i = 0; i < n_edges && r == 0; i++) {
+    uint32_t n_edges = n->edges.size();
+    for (uint32_t i = 0; i < n_edges && r == 0; i++) {
       r = fn(txnid, n->edges.get(i), extra);
     }
   }

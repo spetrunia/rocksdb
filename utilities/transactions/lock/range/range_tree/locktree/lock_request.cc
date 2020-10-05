@@ -142,8 +142,8 @@ void lock_request::get_conflicts(txnid_set *conflicts) {
 //         add (A,T) to the WFG and if B is new, fill in the WFG from B
 void lock_request::build_wait_graph(wfg *wait_graph,
                                     const txnid_set &conflicts) {
-  size_t num_conflicts = conflicts.size();
-  for (size_t i = 0; i < num_conflicts; i++) {
+  uint32_t num_conflicts = conflicts.size();
+  for (uint32_t i = 0; i < num_conflicts; i++) {
     TXNID conflicting_txnid = conflicts.get(i);
     lock_request *conflicting_request = find_lock_request(conflicting_txnid);
     invariant(conflicting_txnid != m_txnid);
@@ -431,8 +431,8 @@ void lock_request::retry_all_lock_requests_info(
 
 void lock_request::add_conflicts_to_waits(
     txnid_set *conflicts, GrowableArray<TXNID> *wait_conflicts) {
-  size_t num_conflicts = conflicts->size();
-  for (size_t i = 0; i < num_conflicts; i++) {
+  uint32_t num_conflicts = conflicts->size();
+  for (uint32_t i = 0; i < num_conflicts; i++) {
     wait_conflicts->push(m_txnid);
     wait_conflicts->push(conflicts->get(i));
   }

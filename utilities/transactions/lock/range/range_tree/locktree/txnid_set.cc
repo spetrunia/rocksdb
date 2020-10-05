@@ -101,10 +101,10 @@ void txnid_set::remove(TXNID txnid) {
 }
 
 // Return the size of the set
-size_t txnid_set::size(void) const { return m_txnids.size(); }
+uint32_t txnid_set::size(void) const { return m_txnids.size(); }
 
 // Get the ith id in the set, assuming that the set is sorted.
-TXNID txnid_set::get(size_t i) const {
+TXNID txnid_set::get(uint32_t i) const {
   TXNID txnid;
   int r = m_txnids.fetch(i, &txnid);
   if (r == EINVAL) /* Shouldn't happen, avoid compiler warning */

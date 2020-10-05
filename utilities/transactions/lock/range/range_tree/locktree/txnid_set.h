@@ -76,10 +76,10 @@ class txnid_set {
   void remove(TXNID txnid);
 
   // returns: Size of the set
-  size_t size(void) const;
+  uint32_t size(void) const;
 
   // returns: The "i'th" id in the set, as if it were sorted.
-  TXNID get(size_t i) const;
+  TXNID get(uint32_t i) const;
 
  private:
   toku::omt<TXNID> m_txnids;
