@@ -131,7 +131,7 @@ bool wfg::cycle_exists_from_txnid(TXNID txnid,
 void wfg::apply_nodes(int (*fn)(TXNID id, void *extra), void *extra) {
   int r = 0;
   uint32_t n_nodes = m_nodes.size();
-  for (size_t i = 0; i < n_nodes && r == 0; i++) {
+  for (uint32_t i = 0; i < n_nodes && r == 0; i++) {
     node *n;
     r = m_nodes.fetch(i, &n);
     invariant_zero(r);
