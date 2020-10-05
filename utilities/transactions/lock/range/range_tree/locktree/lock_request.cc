@@ -266,7 +266,7 @@ int lock_request::wait(uint64_t wait_time_ms, uint64_t killed_time_ms,
       continue;
     }
 
-    // compute next wait time
+    // compute the time until we should wait
     uint64_t t_wait;
     if (killed_time_ms == 0) {
       t_wait = t_end;
@@ -274,14 +274,9 @@ int lock_request::wait(uint64_t wait_time_ms, uint64_t killed_time_ms,
       t_wait = t_now + killed_time_ms * 1000;
       if (t_wait > t_end) t_wait = t_end;
     }
-    /*
-    PORT: don't need to compute "time when the wait should end" anymore.
-    struct timespec ts = {0, 0};
-    ts.tv_sec = t_wait / 1000000;
-    ts.tv_nsec = (t_wait % 1000000) * 1000;
-    */
+
     int r = toku_external_cond_timedwait(&m_wait_cond, &m_info->mutex,
-                                         int32_t(wait_time_ms) * 1000);
+                                         (t_wait - t_now));
     invariant(r == 0 || r == ETIMEDOUT);
 
     t_now = toku_current_time_microsec();
