@@ -299,7 +299,7 @@ void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
   struct migrate_fn_obj {
     concurrent_tree::locked_keyrange *dst_lkr;
     bool fn(const keyrange &range, TXNID txnid, bool is_shared,
-            TxnidVector* owners) {
+            TxnidVector *owners) {
       // There can't be multiple owners in STO mode
       invariant_zero(owners);
       dst_lkr->insert(range, txnid, is_shared);

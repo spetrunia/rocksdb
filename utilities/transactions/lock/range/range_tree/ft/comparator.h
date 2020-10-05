@@ -83,12 +83,9 @@ class comparator {
 
   // like inherit, but doesn't require that the this comparator
   // was already created
-  void create_from(const comparator &cmp) {
-    inherit(cmp);
-  }
+  void create_from(const comparator &cmp) { inherit(cmp); }
 
   void destroy() {}
-
 
   ft_compare_func get_compare_func() const { return _cmp; }
 

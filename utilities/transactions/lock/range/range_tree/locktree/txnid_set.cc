@@ -108,7 +108,7 @@ TXNID txnid_set::get(uint32_t i) const {
   TXNID txnid;
   int r = m_txnids.fetch(i, &txnid);
   if (r == EINVAL) /* Shouldn't happen, avoid compiler warning */
-      return TXNID_NONE;
+    return TXNID_NONE;
   invariant_zero(r);
   return txnid;
 }

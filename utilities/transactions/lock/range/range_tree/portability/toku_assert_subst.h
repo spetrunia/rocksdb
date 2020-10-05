@@ -28,7 +28,6 @@
 #define paranoid_invariant_notnull(a) assert(a)
 #define paranoid_invariant(a) assert(a)
 
-
 #define ENSURE_POD(type) \
   static_assert(std::is_pod<type>::value, #type "isn't POD")
 
