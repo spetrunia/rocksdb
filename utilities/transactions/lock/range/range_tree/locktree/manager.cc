@@ -311,8 +311,8 @@ int locktree_manager::iterate_pending_lock_requests(
     lock_request_iterate_callback callback, void *extra) {
   mutex_lock();
   int r = 0;
-  size_t num_locktrees = m_locktree_map.size();
-  for (size_t i = 0; i < num_locktrees && r == 0; i++) {
+  uint32_t num_locktrees = m_locktree_map.size();
+  for (uint32_t i = 0; i < num_locktrees && r == 0; i++) {
     locktree *lt;
     r = m_locktree_map.fetch(i, &lt);
     invariant_zero(r);
@@ -320,8 +320,8 @@ int locktree_manager::iterate_pending_lock_requests(
     struct lt_lock_request_info *info = lt->get_lock_request_info();
     toku_external_mutex_lock(&info->mutex);
 
-    size_t num_requests = info->pending_lock_requests.size();
-    for (size_t k = 0; k < num_requests && r == 0; k++) {
+    uint32_t num_requests = info->pending_lock_requests.size();
+    for (uint32_t k = 0; k < num_requests && r == 0; k++) {
       lock_request *req;
       r = info->pending_lock_requests.fetch(k, &req);
       invariant_zero(r);
@@ -462,14 +462,14 @@ void locktree_manager::get_status(LTM_STATUS statp) {
   uint64_t sto_num_eligible = 0;
   uint64_t sto_end_early_count = 0;
   tokutime_t sto_end_early_time = 0;
-  size_t num_locktrees = 0;
+  uint32_t num_locktrees = 0;
   struct lt_counters lt_counters;
   ZERO_STRUCT(lt_counters);  // PORT: instead of ={}.
 
   if (toku_mutex_trylock(&m_mutex) == 0) {
     lt_counters = m_lt_counters;
     num_locktrees = m_locktree_map.size();
-    for (size_t i = 0; i < num_locktrees; i++) {
+    for (uint32_t i = 0; i < num_locktrees; i++) {
       locktree *lt;
       int r = m_locktree_map.fetch(i, &lt);
       invariant_zero(r);
@@ -502,8 +502,8 @@ void locktree_manager::get_status(LTM_STATUS statp) {
 void locktree_manager::kill_waiter(void *extra) {
   mutex_lock();
   int r = 0;
-  size_t num_locktrees = m_locktree_map.size();
-  for (size_t i = 0; i < num_locktrees; i++) {
+  uint32_t num_locktrees = m_locktree_map.size();
+  for (uint32_t i = 0; i < num_locktrees; i++) {
     locktree *lt;
     r = m_locktree_map.fetch(i, &lt);
     invariant_zero(r);

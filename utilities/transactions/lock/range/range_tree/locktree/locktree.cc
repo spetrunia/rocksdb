@@ -925,8 +925,8 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback,
   //  constructed)
 
   invariant(m_rangetree->is_empty());
-  const size_t num_range_buffers = range_buffers.size();
-  for (size_t i = 0; i < num_range_buffers; i++) {
+  const uint32_t num_range_buffers = range_buffers.size();
+  for (uint32_t i = 0; i < num_range_buffers; i++) {
     struct txnid_range_buffer *current_range_buffer;
     int r = range_buffers.fetch(i, &current_range_buffer);
     invariant_zero(r);

@@ -408,7 +408,7 @@ void lock_request::retry_all_lock_requests_info(
     lt_lock_request_info *info, GrowableArray<TXNID> *collector) {
   toku_external_mutex_lock(&info->mutex);
   // retry all of the pending lock requests.
-  for (size_t i = 0; i < info->pending_lock_requests.size();) {
+  for (uint32_t i = 0; i < info->pending_lock_requests.size();) {
     lock_request *request;
     int r = info->pending_lock_requests.fetch(i, &request);
     invariant_zero(r);
@@ -461,7 +461,7 @@ void lock_request::kill_waiter(void) {
 void lock_request::kill_waiter(locktree *lt, void *extra) {
   lt_lock_request_info *info = lt->get_lock_request_info();
   toku_external_mutex_lock(&info->mutex);
-  for (size_t i = 0; i < info->pending_lock_requests.size(); i++) {
+  for (uint32_t i = 0; i < info->pending_lock_requests.size(); i++) {
     lock_request *request;
     int r = info->pending_lock_requests.fetch(i, &request);
     if (r == 0 && request->get_extra() == extra) {
