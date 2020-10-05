@@ -54,7 +54,7 @@ DBT *toku_init_dbt_flags(DBT *, uint32_t flags);
 
 void toku_destroy_dbt(DBT *);
 
-DBT *toku_fill_dbt(DBT *dbt, const void *k, uint32_t len);
+DBT *toku_fill_dbt(DBT *dbt, const void *k, size_t len);
 
 DBT *toku_memdup_dbt(DBT *dbt, const void *k, size_t len);
 
