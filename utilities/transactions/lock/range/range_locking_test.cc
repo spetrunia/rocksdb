@@ -136,6 +136,8 @@ TEST_F(RangeLockingTest, MyRocksLikeUpdate) {
   ASSERT_EQ(try_range_lock_called, false);
 
   txn0->Rollback();
+
+  delete txn0;
 }
 
 TEST_F(RangeLockingTest, SnapshotValidation) {
