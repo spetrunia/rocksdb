@@ -83,8 +83,8 @@ typedef void (*lock_wait_callback)(void *arg, uint64_t requesting_txnid,
 
 struct __toku_dbt {
   void *data;
-  uint32_t size;
-  uint32_t ulen;
+  size_t size;
+  size_t ulen;
   // One of DB_DBT_XXX flags
   uint32_t flags;
 };
