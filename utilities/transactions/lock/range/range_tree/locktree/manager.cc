@@ -326,6 +326,8 @@ int locktree_manager::iterate_pending_lock_requests(
       lock_request *req;
       r = info->pending_lock_requests.fetch(k, &req);
       invariant_zero(r);
+      if (r == EINVAL)  /* Shouldn't happen, avoid compiler warning */
+          continue;
       r = callback(lt->get_dict_id(), req->get_txnid(), req->get_left_key(),
                    req->get_right_key(), req->get_conflicting_txnid(),
                    req->get_start_time(), extra);

@@ -107,6 +107,8 @@ size_t txnid_set::size(void) const { return m_txnids.size(); }
 TXNID txnid_set::get(size_t i) const {
   TXNID txnid;
   int r = m_txnids.fetch(i, &txnid);
+  if (r == EINVAL) /* Shouldn't happen, avoid compiler warning */
+      return TXNID_NONE;
   invariant_zero(r);
   return txnid;
 }
