@@ -274,7 +274,7 @@ void RangeLockMgr::UnLockAll(const PessimisticTransaction* txn, Env*) {
   }
 }
 
-int RangeLockMgr::compare_dbt_endpoints(__toku_db*, void* arg, const DBT* a_key,
+int RangeLockMgr::compare_dbt_endpoints(void* arg, const DBT* a_key,
                                         const DBT* b_key) {
   const char* a = (const char*)a_key->data;
   const char* b = (const char*)b_key->data;
@@ -417,7 +417,7 @@ void RangeLockMgr::AddColumnFamily(const ColumnFamilyHandle* cfh) {
   if (ltree_map_.find(column_family_id) == ltree_map_.end()) {
     DICTIONARY_ID dict_id = {.dictid = column_family_id};
     toku::comparator cmp;
-    cmp.create(compare_dbt_endpoints, (void*)cfh->GetComparator(), NULL);
+    cmp.create(compare_dbt_endpoints, (void*)cfh->GetComparator());
     toku::locktree* ltree = ltm_.get_lt(dict_id, cmp,
                                         /* on_create_extra*/ nullptr);
     // This is ok to because get_lt has copied the comparator:

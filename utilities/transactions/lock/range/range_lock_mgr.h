@@ -89,7 +89,7 @@ class RangeLockMgr : public BaseLockMgr, public RangeLockMgrHandle {
   // Get the lock tree which stores locks for Column Family with given cf_id
   toku::locktree* get_locktree_by_cfid(uint32_t cf_id);
 
-  static int compare_dbt_endpoints(__toku_db*, void* arg, const DBT* a_key,
+  static int compare_dbt_endpoints(void* arg, const DBT* a_key,
                                    const DBT* b_key);
 
   // Callbacks

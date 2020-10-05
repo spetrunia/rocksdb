@@ -44,7 +44,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "portability/memory.h"
 #include "util/dbt.h"
 
-typedef int (*ft_compare_func)(DB *db, void *arg, const DBT *a, const DBT *b);
+typedef int (*ft_compare_func)(void *arg, const DBT *a, const DBT *b);
 
 int toku_keycompare(const void *key1, uint32_t key1len, const void *key2,
                     uint32_t key2len);
@@ -59,11 +59,9 @@ namespace toku {
 // that points may be positive or negative infinity.
 
 class comparator {
-  void init(ft_compare_func cmp, void *cmp_arg, DESCRIPTOR desc,
-            uint8_t memcmp_magic) {
+  void init(ft_compare_func cmp, void *cmp_arg, uint8_t memcmp_magic) {
     _cmp = cmp;
     _cmp_arg = cmp_arg;
-    _fake_db->cmp_descriptor = desc;
     _memcmp_magic = memcmp_magic;
   }
 
@@ -71,34 +69,26 @@ class comparator {
   // This magic value is reserved to mean that the magic has not been set.
   static const uint8_t MEMCMP_MAGIC_NONE = 0;
 
-  void create(ft_compare_func cmp, void *cmp_arg, DESCRIPTOR desc,
+  void create(ft_compare_func cmp, void *cmp_arg,
               uint8_t memcmp_magic = MEMCMP_MAGIC_NONE) {
-    XCALLOC(_fake_db);
-    init(cmp, cmp_arg, desc, memcmp_magic);
+    init(cmp, cmp_arg, memcmp_magic);
   }
 
   // inherit the attributes of another comparator, but keep our own
   // copy of fake_db that is owned separately from the one given.
   void inherit(const comparator &cmp) {
-    invariant_notnull(_fake_db);
     invariant_notnull(cmp._cmp);
-    invariant_notnull(cmp._fake_db);
-    init(cmp._cmp, cmp._cmp_arg, cmp._fake_db->cmp_descriptor,
-         cmp._memcmp_magic);
+    init(cmp._cmp, cmp._cmp_arg, cmp._memcmp_magic);
   }
 
   // like inherit, but doesn't require that the this comparator
   // was already created
   void create_from(const comparator &cmp) {
-    XCALLOC(_fake_db);
     inherit(cmp);
   }
 
-  void destroy() { toku_free(_fake_db); }
+  void destroy() {}
 
-  const DESCRIPTOR_S *get_descriptor() const {
-    return _fake_db->cmp_descriptor;
-  }
 
   ft_compare_func get_compare_func() const { return _cmp; }
 
@@ -123,12 +113,11 @@ class comparator {
       return toku_builtin_compare_fun(a, b);
     } else {
       // yikes, const sadness here
-      return _cmp(const_cast<DB *>(_fake_db), _cmp_arg, a, b);
+      return _cmp(_cmp_arg, a, b);
     }
   }
 
  private:
-  DB *_fake_db;
   ft_compare_func _cmp;
   void *_cmp_arg;
 

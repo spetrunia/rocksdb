@@ -88,13 +88,5 @@ struct __toku_dbt {
   // One of DB_DBT_XXX flags
   uint32_t flags;
 };
-typedef struct __toku_descriptor {
-  DBT dbt;
-} * DESCRIPTOR, DESCRIPTOR_S;
 
-struct __toku_db {
-  DESCRIPTOR cmp_descriptor /* saved row/dictionary descriptor for aiding in
-                               comparisons */
-      ;
-};
 #endif
