@@ -58,6 +58,9 @@ inline int toku_external_cond_timedwait(toku_external_cond_t *cond,
 
 inline void toku_external_mutex_init(toku_external_mutex_factory_t factory,
                                      toku_external_mutex_t *mutex) {
+  // Use placement new: the memory has been allocated but constructor wasn't
+  // called
+  new (mutex) toku_external_mutex_t;
   *mutex = factory->AllocateMutex();
 }
 

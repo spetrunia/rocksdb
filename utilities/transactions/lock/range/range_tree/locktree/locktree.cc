@@ -100,7 +100,6 @@ void locktree::create(locktree_manager *mgr, DICTIONARY_ID dict_id,
 void lt_lock_request_info::init(toku_external_mutex_factory_t mutex_factory) {
   pending_lock_requests.create();
   pending_is_empty = true;
-  ZERO_STRUCT(mutex);
   toku_external_mutex_init(mutex_factory, &mutex);
   retry_want = retry_done = 0;
   ZERO_STRUCT(counters);
