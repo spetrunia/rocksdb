@@ -510,6 +510,7 @@ void locktree_manager::kill_waiter(void *extra) {
     locktree *lt;
     r = m_locktree_map.fetch(i, &lt);
     invariant_zero(r);
+    if (r)  continue; // Get rid of "may be used uninitialized" warning
     lock_request::kill_waiter(lt, extra);
   }
   mutex_unlock();

@@ -72,6 +72,7 @@ void wfg::destroy(void) {
     int r = m_nodes.fetch(i, &n);
     invariant_zero(r);
     invariant_notnull(n);
+    if (r)  continue; // Get rid of "may be used uninitialized" warning
     node::free(n);
   }
   m_nodes.destroy();
@@ -135,6 +136,7 @@ void wfg::apply_nodes(int (*fn)(TXNID id, void *extra), void *extra) {
     node *n;
     r = m_nodes.fetch(i, &n);
     invariant_zero(r);
+    if (r)  continue; // Get rid of "may be used uninitialized" warning
     r = fn(n->txnid, extra);
   }
 }
