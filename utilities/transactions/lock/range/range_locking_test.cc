@@ -21,7 +21,7 @@
 
 using std::string;
 
-namespace rocksdb {
+namespace ROCKSDB_NAMESPACE {
 
 class RangeLockingTest : public ::testing::Test {
  public:
@@ -190,7 +190,7 @@ TEST_F(RangeLockingTest, SnapshotValidation) {
   */
 }
 
-}  // namespace rocksdb
+}  // namespace ROCKSDB_NAMESPACE
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);

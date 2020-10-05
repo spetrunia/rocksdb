@@ -20,10 +20,10 @@
 #include "rocksdb/utilities/transaction_db_mutex.h"
 #include "toku_portability.h"
 
-using rocksdb::TransactionDBCondVar;
-using rocksdb::TransactionDBMutex;
+using ROCKSDB_NAMESPACE::TransactionDBCondVar;
+using ROCKSDB_NAMESPACE::TransactionDBMutex;
 
-typedef std::shared_ptr<rocksdb::TransactionDBMutexFactory>
+typedef std::shared_ptr<ROCKSDB_NAMESPACE::TransactionDBMutexFactory>
     toku_external_mutex_factory_t;
 
 typedef std::shared_ptr<TransactionDBMutex> toku_external_mutex_t;
