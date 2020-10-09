@@ -383,6 +383,13 @@ void RangeLockMgr::on_escalate(TXNID txnid, const locktree* lt,
 
 RangeLockMgr::~RangeLockMgr() {
   // TODO: at this point, synchronization is not needed, right?
+
+  autovector<void*> local_caches;
+  ltree_lookup_cache_->Scrape(&local_caches, nullptr);
+  for (auto cache : local_caches) {
+    delete static_cast<LockTreeMap*>(cache);
+  }
+
   for (auto it : ltree_map_) {
     ltm_.release_lt(it.second);
   }

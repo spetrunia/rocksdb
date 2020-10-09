@@ -190,6 +190,9 @@ TEST_F(RangeLockingTest, SnapshotValidation) {
     Status s3 = txn3->Get(ReadOptions(), cfh, key_slice, &val3);
     fprintf(stderr, "Final: %s\n", val3.c_str());
   */
+  delete txn0;
+  delete txn1;
+  delete txn2;
 }
 
 }  // namespace ROCKSDB_NAMESPACE
