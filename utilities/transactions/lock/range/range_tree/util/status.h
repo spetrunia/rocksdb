@@ -57,7 +57,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
         "Missing column name.");                                             \
     array.status[k].include =                                                \
         static_cast<toku_engine_status_include_type>(inc);                   \
-    if (t == PARCOUNT) {                                                     \
+    if (t == STATUS_PARCOUNT) {                                              \
       array.status[k].value.parcount = create_partitioned_counter();         \
     }                                                                        \
   } while (0)

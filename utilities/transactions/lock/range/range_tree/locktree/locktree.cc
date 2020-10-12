@@ -932,6 +932,8 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback,
     struct txnid_range_buffer *current_range_buffer;
     int r = range_buffers.fetch(i, &current_range_buffer);
     invariant_zero(r);
+    if (r == EINVAL)  // Shouldn't happen, avoid compiler warning
+      continue;
 
     const TXNID current_txnid = current_range_buffer->txnid;
     range_buffer::iterator iter(&current_range_buffer->buffer);

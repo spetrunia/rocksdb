@@ -16,13 +16,13 @@ struct simple_dbt {
 // engine status is passed to handlerton as an array of
 // TOKU_ENGINE_STATUS_ROW_S[]
 typedef enum {
-  FS_STATE = 0,  // interpret as file system state (redzone) enum
-  UINT64,        // interpret as uint64_t
-  CHARSTR,       // interpret as char *
-  UNIXTIME,      // interpret as time_t
-  TOKUTIME,      // interpret as tokutime_t
-  PARCOUNT,      // interpret as PARTITIONED_COUNTER
-  DOUBLE         // interpret as double
+  STATUS_FS_STATE = 0,  // interpret as file system state (redzone) enum
+  STATUS_UINT64,        // interpret as uint64_t
+  STATUS_CHARSTR,       // interpret as char *
+  STATUS_UNIXTIME,      // interpret as time_t
+  STATUS_TOKUTIME,      // interpret as tokutime_t
+  STATUS_PARCOUNT,      // interpret as PARTITIONED_COUNTER
+  STATUS_DOUBLE         // interpret as double
 } toku_engine_status_display_type;
 
 typedef enum {

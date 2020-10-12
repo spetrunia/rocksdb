@@ -317,6 +317,8 @@ int locktree_manager::iterate_pending_lock_requests(
     locktree *lt;
     r = m_locktree_map.fetch(i, &lt);
     invariant_zero(r);
+    if (r == EINVAL)  // Shouldn't happen, avoid compiler warning
+      continue;
 
     struct lt_lock_request_info *info = lt->get_lock_request_info();
     toku_external_mutex_lock(&info->mutex);
@@ -476,6 +478,8 @@ void locktree_manager::get_status(LTM_STATUS statp) {
       locktree *lt;
       int r = m_locktree_map.fetch(i, &lt);
       invariant_zero(r);
+      if (r == EINVAL)  // Shouldn't happen, avoid compiler warning
+        continue;
       if (toku_external_mutex_trylock(&lt->m_lock_request_info.mutex) == 0) {
         lock_requests_pending +=
             lt->m_lock_request_info.pending_lock_requests.size();

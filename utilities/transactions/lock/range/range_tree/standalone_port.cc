@@ -52,46 +52,49 @@ void LTM_STATUS_S::init() {
 #define LTM_STATUS_INIT(k, c, t, l)                    \
   TOKUFT_STATUS_INIT((*this), k, c, t, "locktree: " l, \
                      TOKU_ENGINE_STATUS | TOKU_GLOBAL_STATUS)
-  LTM_STATUS_INIT(LTM_SIZE_CURRENT, LOCKTREE_MEMORY_SIZE, UINT64,
+  LTM_STATUS_INIT(LTM_SIZE_CURRENT, LOCKTREE_MEMORY_SIZE, STATUS_UINT64,
                   "memory size");
-  LTM_STATUS_INIT(LTM_SIZE_LIMIT, LOCKTREE_MEMORY_SIZE_LIMIT, UINT64,
+  LTM_STATUS_INIT(LTM_SIZE_LIMIT, LOCKTREE_MEMORY_SIZE_LIMIT, STATUS_UINT64,
                   "memory size limit");
-  LTM_STATUS_INIT(LTM_ESCALATION_COUNT, LOCKTREE_ESCALATION_NUM, UINT64,
+  LTM_STATUS_INIT(LTM_ESCALATION_COUNT, LOCKTREE_ESCALATION_NUM, STATUS_UINT64,
                   "number of times lock escalation ran");
-  LTM_STATUS_INIT(LTM_ESCALATION_TIME, LOCKTREE_ESCALATION_SECONDS, TOKUTIME,
+  LTM_STATUS_INIT(LTM_ESCALATION_TIME, LOCKTREE_ESCALATION_SECONDS,
+                  STATUS_TOKUTIME,
                   "time spent running escalation (seconds)");
   LTM_STATUS_INIT(LTM_ESCALATION_LATEST_RESULT,
-                  LOCKTREE_LATEST_POST_ESCALATION_MEMORY_SIZE, UINT64,
+                  LOCKTREE_LATEST_POST_ESCALATION_MEMORY_SIZE, STATUS_UINT64,
                   "latest post-escalation memory size");
-  LTM_STATUS_INIT(LTM_NUM_LOCKTREES, LOCKTREE_OPEN_CURRENT, UINT64,
+  LTM_STATUS_INIT(LTM_NUM_LOCKTREES, LOCKTREE_OPEN_CURRENT, STATUS_UINT64,
                   "number of locktrees open now");
   LTM_STATUS_INIT(LTM_LOCK_REQUESTS_PENDING, LOCKTREE_PENDING_LOCK_REQUESTS,
-                  UINT64, "number of pending lock requests");
-  LTM_STATUS_INIT(LTM_STO_NUM_ELIGIBLE, LOCKTREE_STO_ELIGIBLE_NUM, UINT64,
-                  "number of locktrees eligible for the STO");
-  LTM_STATUS_INIT(LTM_STO_END_EARLY_COUNT, LOCKTREE_STO_ENDED_NUM, UINT64,
+                  STATUS_UINT64, "number of pending lock requests");
+  LTM_STATUS_INIT(LTM_STO_NUM_ELIGIBLE, LOCKTREE_STO_ELIGIBLE_NUM,
+                  STATUS_UINT64, "number of locktrees eligible for the STO");
+  LTM_STATUS_INIT(LTM_STO_END_EARLY_COUNT, LOCKTREE_STO_ENDED_NUM,
+                  STATUS_UINT64,
                   "number of times a locktree ended the STO early");
-  LTM_STATUS_INIT(LTM_STO_END_EARLY_TIME, LOCKTREE_STO_ENDED_SECONDS, TOKUTIME,
+  LTM_STATUS_INIT(LTM_STO_END_EARLY_TIME, LOCKTREE_STO_ENDED_SECONDS,
+                  STATUS_TOKUTIME,
                   "time spent ending the STO early (seconds)");
-  LTM_STATUS_INIT(LTM_WAIT_COUNT, LOCKTREE_WAIT_COUNT, UINT64,
+  LTM_STATUS_INIT(LTM_WAIT_COUNT, LOCKTREE_WAIT_COUNT, STATUS_UINT64,
                   "number of wait locks");
-  LTM_STATUS_INIT(LTM_WAIT_TIME, LOCKTREE_WAIT_TIME, UINT64,
+  LTM_STATUS_INIT(LTM_WAIT_TIME, LOCKTREE_WAIT_TIME, STATUS_UINT64,
                   "time waiting for locks");
-  LTM_STATUS_INIT(LTM_LONG_WAIT_COUNT, LOCKTREE_LONG_WAIT_COUNT, UINT64,
+  LTM_STATUS_INIT(LTM_LONG_WAIT_COUNT, LOCKTREE_LONG_WAIT_COUNT, STATUS_UINT64,
                   "number of long wait locks");
-  LTM_STATUS_INIT(LTM_LONG_WAIT_TIME, LOCKTREE_LONG_WAIT_TIME, UINT64,
+  LTM_STATUS_INIT(LTM_LONG_WAIT_TIME, LOCKTREE_LONG_WAIT_TIME, STATUS_UINT64,
                   "long time waiting for locks");
-  LTM_STATUS_INIT(LTM_TIMEOUT_COUNT, LOCKTREE_TIMEOUT_COUNT, UINT64,
+  LTM_STATUS_INIT(LTM_TIMEOUT_COUNT, LOCKTREE_TIMEOUT_COUNT, STATUS_UINT64,
                   "number of lock timeouts");
   LTM_STATUS_INIT(LTM_WAIT_ESCALATION_COUNT, LOCKTREE_WAIT_ESCALATION_COUNT,
-                  UINT64, "number of waits on lock escalation");
+                  STATUS_UINT64, "number of waits on lock escalation");
   LTM_STATUS_INIT(LTM_WAIT_ESCALATION_TIME, LOCKTREE_WAIT_ESCALATION_TIME,
-                  UINT64, "time waiting on lock escalation");
+                  STATUS_UINT64, "time waiting on lock escalation");
   LTM_STATUS_INIT(LTM_LONG_WAIT_ESCALATION_COUNT,
-                  LOCKTREE_LONG_WAIT_ESCALATION_COUNT, UINT64,
+                  LOCKTREE_LONG_WAIT_ESCALATION_COUNT, STATUS_UINT64,
                   "number of long waits on lock escalation");
   LTM_STATUS_INIT(LTM_LONG_WAIT_ESCALATION_TIME,
-                  LOCKTREE_LONG_WAIT_ESCALATION_TIME, UINT64,
+                  LOCKTREE_LONG_WAIT_ESCALATION_TIME, STATUS_UINT64,
                   "long time waiting on lock escalation");
 
   m_initialized = true;
@@ -100,7 +103,7 @@ void LTM_STATUS_S::init() {
 void LTM_STATUS_S::destroy() {
   if (!m_initialized) return;
   for (int i = 0; i < LTM_STATUS_NUM_ROWS; ++i) {
-    if (status[i].type == PARCOUNT) {
+    if (status[i].type == STATUS_PARCOUNT) {
       // PORT: TODO?? destroy_partitioned_counter(status[i].value.parcount);
     }
   }
