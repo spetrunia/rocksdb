@@ -497,4 +497,5 @@ static inline toku_pthread_t toku_pthread_self(void) { return pthread_self(); }
 static inline void *toku_pthread_done(void *exit_value) {
   toku_instr_delete_current_thread();
   pthread_exit(exit_value);
+  return nullptr;  // Avoid compiler warning
 }
