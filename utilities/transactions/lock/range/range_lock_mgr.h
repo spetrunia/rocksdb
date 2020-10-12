@@ -54,8 +54,6 @@ class RangeLockMgr : public BaseLockMgr, public RangeLockMgrHandle {
 
   RangeLockMgr(std::shared_ptr<TransactionDBMutexFactory> mutex_factory);
 
-  void init(TransactionDB* db_arg) override { my_txn_db_ = db_arg; }
-
   ~RangeLockMgr();
 
   int set_max_lock_memory(size_t max_lock_memory) override {
@@ -71,7 +69,6 @@ class RangeLockMgr : public BaseLockMgr, public RangeLockMgrHandle {
  private:
   toku::locktree_manager ltm_;
 
-  TransactionDB* my_txn_db_;
   std::shared_ptr<TransactionDBMutexFactory> mutex_factory_;
 
   // Map from cf_id to locktree*. Can only be accessed while holding the

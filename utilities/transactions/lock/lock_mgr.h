@@ -61,8 +61,6 @@ class BaseLockMgr {
   virtual void Resize(uint32_t) = 0;
   virtual std::vector<DeadlockPath> GetDeadlockInfoBuffer() = 0;
 
-  // TransactionDB will call this at start
-  virtual void init(TransactionDB*){};
   virtual ~BaseLockMgr() {}
 
   // PessimisticTransactionDB will call this to determine if the lock manager

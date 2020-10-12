@@ -57,7 +57,6 @@ void PessimisticTransactionDB::init_lock_manager() {
     lock_mgr_.reset(lock_mgr);
     range_lock_mgr_ = nullptr;
   }
-  lock_mgr_->init(this);
 }
 
 // Support initiliazing PessimisticTransactionDB from a stackable db
