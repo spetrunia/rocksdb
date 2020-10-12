@@ -161,15 +161,6 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
   return Status::OK();
 }
 
-// Get a singlepoint lock
-//   (currently it is the same as getting a range lock)
-Status RangeLockMgr::TryLock(PessimisticTransaction* txn,
-                             uint32_t column_family_id, const std::string& key,
-                             Env*, bool exclusive) {
-  Endpoint endp(key.data(), key.size(), false);
-  return TryRangeLock(txn, column_family_id, endp, endp, exclusive);
-}
-
 static void range_lock_mgr_release_lock_int(toku::locktree* lt,
                                             const PessimisticTransaction* txn,
                                             uint32_t /*column_family_id*/,
