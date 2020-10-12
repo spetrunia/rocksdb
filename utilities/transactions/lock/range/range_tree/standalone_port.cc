@@ -59,8 +59,7 @@ void LTM_STATUS_S::init() {
   LTM_STATUS_INIT(LTM_ESCALATION_COUNT, LOCKTREE_ESCALATION_NUM, STATUS_UINT64,
                   "number of times lock escalation ran");
   LTM_STATUS_INIT(LTM_ESCALATION_TIME, LOCKTREE_ESCALATION_SECONDS,
-                  STATUS_TOKUTIME,
-                  "time spent running escalation (seconds)");
+                  STATUS_TOKUTIME, "time spent running escalation (seconds)");
   LTM_STATUS_INIT(LTM_ESCALATION_LATEST_RESULT,
                   LOCKTREE_LATEST_POST_ESCALATION_MEMORY_SIZE, STATUS_UINT64,
                   "latest post-escalation memory size");
@@ -74,8 +73,7 @@ void LTM_STATUS_S::init() {
                   STATUS_UINT64,
                   "number of times a locktree ended the STO early");
   LTM_STATUS_INIT(LTM_STO_END_EARLY_TIME, LOCKTREE_STO_ENDED_SECONDS,
-                  STATUS_TOKUTIME,
-                  "time spent ending the STO early (seconds)");
+                  STATUS_TOKUTIME, "time spent ending the STO early (seconds)");
   LTM_STATUS_INIT(LTM_WAIT_COUNT, LOCKTREE_WAIT_COUNT, STATUS_UINT64,
                   "number of wait locks");
   LTM_STATUS_INIT(LTM_WAIT_TIME, LOCKTREE_WAIT_TIME, STATUS_UINT64,
