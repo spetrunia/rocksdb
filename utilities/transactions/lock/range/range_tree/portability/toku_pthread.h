@@ -299,7 +299,7 @@ inline void toku_cond_destroy(toku_cond_t *cond) {
 inline void toku_cond_wait_with_source_location(toku_cond_t *cond,
                                                 toku_mutex_t *mutex,
                                                 const char *src_file,
-                                                uint src_line) {
+                                                int src_line) {
 #if defined(TOKU_PTHREAD_DEBUG)
   invariant(mutex->locked);
   mutex->locked = false;
@@ -329,7 +329,7 @@ inline int toku_cond_timedwait_with_source_location(toku_cond_t *cond,
                                                     toku_mutex_t *mutex,
                                                     toku_timespec_t *wakeup_at,
                                                     const char *src_file,
-                                                    uint src_line) {
+                                                    int src_line) {
 #if defined(TOKU_PTHREAD_DEBUG)
   invariant(mutex->locked);
   mutex->locked = false;
