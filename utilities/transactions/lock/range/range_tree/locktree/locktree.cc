@@ -444,6 +444,8 @@ int locktree::acquire_lock_consolidated(void *prepared_lkr, TXNID txnid,
         m_mgr->note_mem_used(mem_used);
       }
     }
+    requested_range.destroy();
+    overlapping_row_locks.deinit();
     return 0;
   }
 

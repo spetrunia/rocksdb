@@ -318,10 +318,19 @@ int RangeLockMgr::compare_dbt_endpoints(void* arg, const DBT* a_key,
     return res;
 }
 
+namespace {
+void UnrefLockTreeMapsCache(void* ptr) {
+  // Called when a thread exits or a ThreadLocalPtr gets destroyed.
+  auto lock_tree_map_cache =
+      static_cast<std::unordered_map<uint32_t, locktree*>*>(ptr);
+  delete lock_tree_map_cache;
+}
+}  // anonymous namespace
+
 RangeLockMgr::RangeLockMgr(
     std::shared_ptr<TransactionDBMutexFactory> mutex_factory)
     : mutex_factory_(mutex_factory),
-      ltree_lookup_cache_(new ThreadLocalPtr(nullptr)),
+      ltree_lookup_cache_(new ThreadLocalPtr(&UnrefLockTreeMapsCache)),
       dlock_buffer_(10) {
   ltm_.create(on_create, on_destroy, on_escalate, NULL, mutex_factory_);
 }
