@@ -203,14 +203,24 @@ int main(int argc, char** argv) {
   return RUN_ALL_TESTS();
 }
 
+#else // OS_WIN
+
+#include <stdio.h>
+int main(int /*argc*/, char** /*argv*/) {
+  fprintf(stderr,
+          "skipped as Range Locking is not supported on Windows\n");
+  return 0;
+}
+
+#endif  // OS_WIN
+
 #else
 #include <stdio.h>
 
 int main(int /*argc*/, char** /*argv*/) {
   fprintf(stderr,
-          "SKIPPED as Transactions are not supported in ROCKSDB_LITE\n");
+          "skipped as transactions are not supported in rocksdb_lite\n");
   return 0;
 }
 
-#endif  // OS_WIN
 #endif  // ROCKSDB_LITE
