@@ -1,4 +1,5 @@
 #ifndef ROCKSDB_LITE
+#ifndef OS_WIN
 
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
@@ -211,4 +212,5 @@ int main(int /*argc*/, char** /*argv*/) {
   return 0;
 }
 
+#endif  // OS_WIN
 #endif  // ROCKSDB_LITE

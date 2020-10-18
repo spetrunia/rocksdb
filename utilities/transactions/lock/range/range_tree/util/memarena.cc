@@ -1,6 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef ROCKSDB_LITE
+#ifndef OS_WIN
 #ident "$Id$"
 /*======
 This file is part of PerconaFT.
@@ -180,4 +181,5 @@ bool memarena::chunk_iterator::more() const {
   }
   return _chunk_idx < _ma->_n_other_chunks;
 }
+#endif  // OS_WIN
 #endif  // ROCKSDB_LITE

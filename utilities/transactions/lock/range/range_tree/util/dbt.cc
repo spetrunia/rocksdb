@@ -1,6 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef ROCKSDB_LITE
+#ifndef OS_WIN
 #ident "$Id$"
 /*======
 This file is part of PerconaFT.
@@ -148,4 +149,5 @@ bool toku_dbt_equals(const DBT *a, const DBT *b) {
     return a == b ? true : false;
   }
 }
+#endif  // OS_WIN
 #endif  // ROCKSDB_LITE

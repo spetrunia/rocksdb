@@ -4,6 +4,7 @@
 //  (found in the LICENSE.Apache file in the root directory).
 
 #ifndef ROCKSDB_LITE
+#ifndef OS_WIN
 
 #include "utilities/transactions/lock/range/range_lock_mgr.h"
 
@@ -542,4 +543,5 @@ BaseLockMgr::LockStatusData RangeLockMgr::GetLockStatusData() {
 }
 
 }  // namespace ROCKSDB_NAMESPACE
+#endif  // OS_WIN
 #endif  // ROCKSDB_LITE

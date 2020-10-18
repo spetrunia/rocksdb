@@ -22,7 +22,6 @@ using namespace toku;
 */
 class RangeLockManagerBase : public BaseLockMgr {
  public:
-
   // Get a lock on a range
   // (TODO: TryLock accepts Env* parameter. Should this function do it, too?)
   virtual Status TryRangeLock(PessimisticTransaction* txn,
