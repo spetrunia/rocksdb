@@ -37,6 +37,9 @@ class RangeLockManagerBase : public BaseLockMgr {
     Endpoint endp(key.data(), key.size(), false);
     return TryRangeLock(txn, column_family_id, endp, endp, exclusive);
   }
+
+  // Release all locks the transaction is holding
+  virtual void UnLockAll(const PessimisticTransaction* txn, Env* env) = 0;
 };
 
 /*
@@ -67,7 +70,7 @@ class RangeLockMgr : public RangeLockManagerBase, public RangeLockMgrHandle {
   void UnLock(const PessimisticTransaction* txn, const LockTracker& tracker,
               Env* env) override;
   // Release all locks the transaction is holding
-  void UnLockAll(const PessimisticTransaction* txn, Env* env);
+  void UnLockAll(const PessimisticTransaction* txn, Env* env) override;
   void UnLock(PessimisticTransaction* txn, uint32_t column_family_id,
               const std::string& key, Env* env) override;
 
