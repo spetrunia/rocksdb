@@ -17,20 +17,18 @@ namespace ROCKSDB_NAMESPACE {
 
 using namespace toku;
 
-
 /*
   A basic class for all Range-based lock managers.
 */
 class RangeLockManagerBase : public BaseLockMgr {
-public:
+ public:
 
   // Get a lock on a range
   // (TODO: TryLock accepts Env* parameter. Should this function do it, too?)
   virtual Status TryRangeLock(PessimisticTransaction* txn,
                               uint32_t column_family_id,
                               const Endpoint& start_endp,
-                              const Endpoint& end_endp,
-                              bool exclusive) = 0;
+                              const Endpoint& end_endp, bool exclusive) = 0;
 
   // Get a point lock
   // This is the same as getting a range lock on a single-point range.
@@ -39,7 +37,6 @@ public:
     Endpoint endp(key.data(), key.size(), false);
     return TryRangeLock(txn, column_family_id, endp, endp, exclusive);
   }
-
 };
 
 /*
@@ -55,7 +52,6 @@ class RangeLockMgr : public RangeLockManagerBase, public RangeLockMgrHandle {
 
   void AddColumnFamily(const ColumnFamilyHandle* cfh) override;
   void RemoveColumnFamily(const ColumnFamilyHandle* cfh) override;
-
 
   // Resize the deadlock-info buffer, does nothing currently
   void Resize(uint32_t) override;

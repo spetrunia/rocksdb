@@ -173,12 +173,11 @@ class PessimisticTransactionDB : public TransactionDB {
   friend class WriteUnpreparedTransactionTest_RecoveryTest_Test;
   friend class WriteUnpreparedTransactionTest_MarkLogWithPrepSection_Test;
 
-  // Lock manager being used. This is either a TransactionLockMgr or a
-  // RangeLockMgr
+  // Lock manager being used.
   std::shared_ptr<BaseLockMgr> lock_mgr_;
 
   // Non-null if we are using a lock manager that supports range locking.
-  RangeLockMgr* range_lock_mgr_ = nullptr;
+  RangeLockManagerBase* range_lock_mgr_ = nullptr;
 
   void init_lock_manager();
 
