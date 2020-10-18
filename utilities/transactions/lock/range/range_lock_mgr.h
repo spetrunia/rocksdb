@@ -9,13 +9,8 @@
 #include "utilities/transactions/lock/lock_mgr.h"
 #include "utilities/transactions/lock/range/range_lock_tracker.h"
 
-// Lock Tree library:
-#include <locktree/lock_request.h>
-#include <locktree/locktree.h>
-
+// TODO: move this piece to a separate file:
 namespace ROCKSDB_NAMESPACE {
-
-using namespace toku;
 
 /*
   A basic class for all Range-based lock managers.
@@ -41,6 +36,19 @@ class RangeLockManagerBase : public BaseLockMgr {
   virtual void UnLockAll(const PessimisticTransaction* txn, Env* env) = 0;
 };
 
+
+}  // namespace ROCKSDB_NAMESPACE
+
+#ifndef OS_WIN
+
+// Lock Tree library:
+#include <locktree/lock_request.h>
+#include <locktree/locktree.h>
+
+namespace ROCKSDB_NAMESPACE {
+
+using namespace toku;
+
 /*
   A lock manager that supports Range-based locking.
 */
@@ -50,7 +58,7 @@ class RangeLockMgr : public RangeLockManagerBase, public RangeLockMgrHandle {
     return &RangeLockTrackerFactory::instance;
   }
   BaseLockMgr* getLockManager() override { return this; }
-  RangeLockMgr* getRangeLockMgr() override { return this; }
+  RangeLockManagerBase* getRangeLockManager() override { return this; }
 
   void AddColumnFamily(const ColumnFamilyHandle* cfh) override;
   void RemoveColumnFamily(const ColumnFamilyHandle* cfh) override;
@@ -121,4 +129,5 @@ class RangeLockMgr : public RangeLockManagerBase, public RangeLockMgrHandle {
 void serialize_endpoint(const Endpoint& endp, std::string* buf);
 
 }  // namespace ROCKSDB_NAMESPACE
+#endif  // OS_WIN
 #endif  // ROCKSDB_LITE

@@ -38,7 +38,7 @@ struct DeadlockInfoBuffer {
   std::vector<DeadlockPath> PrepareBuffer();
 };
 
-class RangeLockMgr;
+class RangeLockManagerBase;
 
 //
 // Base class for Point and Range-based lock manager.
@@ -65,7 +65,7 @@ class BaseLockMgr {
 
   // PessimisticTransactionDB will call this to determine if the lock manager
   // supports range locking (this is a dynamic_cast replacement).
-  virtual RangeLockMgr* getRangeLockMgr() { return nullptr; }
+  virtual RangeLockManagerBase* getRangeLockManager() { return nullptr; }
 
   using LockStatusData = std::unordered_multimap<uint32_t, KeyLockInfo>;
   virtual LockStatusData GetLockStatusData() = 0;

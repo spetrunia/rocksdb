@@ -5,6 +5,10 @@
 
 #ifndef ROCKSDB_LITE
 
+#ifndef OS_WIN
+#define ENABLE_RANGE_LOCKING_TESTS
+#endif
+
 #include "file/file_util.h"
 #include "port/port.h"
 #include "port/stack_trace.h"
@@ -13,7 +17,11 @@
 #include "test_util/testutil.h"
 #include "utilities/transactions/lock/lock_mgr.h"
 #include "utilities/transactions/lock/point/point_lock_mgr.h"
+
+#ifdef ENABLE_RANGE_LOCKING_TESTS
 #include "utilities/transactions/lock/range/range_lock_mgr.h"
+#endif
+
 #include "utilities/transactions/transaction_db_mutex_impl.h"
 
 namespace ROCKSDB_NAMESPACE {
@@ -31,6 +39,7 @@ class TransactionLockMgrTest : public testing::Test {
     TransactionDBOptions txn_opt;
     txn_opt.transaction_lock_timeout = 0;
 
+#ifdef ENABLE_RANGE_LOCKING_TESTS
     if (use_range_locking) {
       /*
         With Range Locking, we must use the same lock manager object that the
@@ -41,6 +50,7 @@ class TransactionLockMgrTest : public testing::Test {
       range_lock_mgr = std::dynamic_pointer_cast<RangeLockMgrHandle>(locker_);
       txn_opt.lock_mgr_handle = range_lock_mgr;
     }
+#endif
 
     ASSERT_OK(TransactionDB::Open(opt, txn_opt, db_dir_, &db_));
 
@@ -438,7 +448,13 @@ TEST_F(TransactionLockMgrTest, DeadlockDepthExceeded) {
   delete txn1;
 }
 
-INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest, ::testing::Bool());
+INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
+#ifdef ENABLE_RANGE_LOCKING_TESTS
+::testing::Bool()
+#else
+::testing::Values(false)
+#endif
+);
 
 }  // namespace ROCKSDB_NAMESPACE
 

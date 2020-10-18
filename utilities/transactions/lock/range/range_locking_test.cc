@@ -203,12 +203,11 @@ int main(int argc, char** argv) {
   return RUN_ALL_TESTS();
 }
 
-#else // OS_WIN
+#else  // OS_WIN
 
 #include <stdio.h>
 int main(int /*argc*/, char** /*argv*/) {
-  fprintf(stderr,
-          "skipped as Range Locking is not supported on Windows\n");
+  fprintf(stderr, "skipped as Range Locking is not supported on Windows\n");
   return 0;
 }
 
