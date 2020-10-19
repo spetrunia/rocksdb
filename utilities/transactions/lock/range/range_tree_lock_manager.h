@@ -1,6 +1,6 @@
 //
 // Range Lock Manager that uses PerconaFT's locktree library
-// 
+//
 #pragma once
 #ifndef ROCKSDB_LITE
 #ifndef OS_WIN
@@ -20,7 +20,8 @@ using namespace toku;
 /*
   A Range Lock Manager that uses PerconaFT's locktree library
 */
-class RangeTreeLockManager : public RangeLockManagerBase, public RangeLockManagerHandle {
+class RangeTreeLockManager : public RangeLockManagerBase,
+                             public RangeLockManagerHandle {
  public:
   LockTrackerFactory* getLockTrackerFactory() override {
     return &RangeTreeLockTrackerFactory::instance;
@@ -50,7 +51,7 @@ class RangeTreeLockManager : public RangeLockManagerBase, public RangeLockManage
               const std::string& key, Env* env) override;
 
   RangeTreeLockManager(
-    std::shared_ptr<TransactionDBMutexFactory> mutex_factory);
+      std::shared_ptr<TransactionDBMutexFactory> mutex_factory);
 
   ~RangeTreeLockManager();
 

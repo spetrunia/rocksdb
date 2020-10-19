@@ -47,9 +47,10 @@ void serialize_endpoint(const Endpoint& endp, std::string* buf) {
 
 // Get a range lock on [start_key; end_key] range
 Status RangeTreeLockManager::TryRangeLock(PessimisticTransaction* txn,
-                                  uint32_t column_family_id,
-                                  const Endpoint& start_endp,
-                                  const Endpoint& end_endp, bool exclusive) {
+                                          uint32_t column_family_id,
+                                          const Endpoint& start_endp,
+                                          const Endpoint& end_endp,
+                                          bool exclusive) {
   toku::lock_request request;
   request.create(mutex_factory_);
   DBT start_key_dbt, end_key_dbt;
@@ -176,8 +177,8 @@ static void range_lock_mgr_release_lock_int(toku::locktree* lt,
 }
 
 void RangeTreeLockManager::UnLock(PessimisticTransaction* txn,
-                          uint32_t column_family_id, const std::string& key,
-                          Env*) {
+                                  uint32_t column_family_id,
+                                  const std::string& key, Env*) {
   auto lt = get_locktree_by_cfid(column_family_id);
   range_lock_mgr_release_lock_int(lt, txn, column_family_id, key);
   toku::lock_request::retry_all_lock_requests(
@@ -185,7 +186,7 @@ void RangeTreeLockManager::UnLock(PessimisticTransaction* txn,
 }
 
 void RangeTreeLockManager::UnLock(const PessimisticTransaction* /*txn*/,
-                          const LockTracker&, Env*) {
+                                  const LockTracker&, Env*) {
 // psergey-merge-todo:
 #if 0  
   //TODO: if we collect all locks in a range buffer and then
@@ -221,10 +222,9 @@ void RangeTreeLockManager::UnLockAll(const PessimisticTransaction* txn, Env*) {
         Additional complication here is internal mutex(es) in the locktree
         (let's call them latches):
         - Lock escalation first obtains latches on the lock tree
-        - Then, it calls RangeTreeLockManager::on_escalate to replace transaction's
-          range_list->buffer_.
-          = Access to that buffer must be synchronized, so it will want to
-          acquire the range_list->mutex_.
+        - Then, it calls RangeTreeLockManager::on_escalate to replace
+        transaction's range_list->buffer_. = Access to that buffer must be
+        synchronized, so it will want to acquire the range_list->mutex_.
 
         While in this function we would want to do the reverse:
         - Acquire range_list->mutex_ to prevent access to the range_list.
@@ -263,7 +263,7 @@ void RangeTreeLockManager::UnLockAll(const PessimisticTransaction* txn, Env*) {
 }
 
 int RangeTreeLockManager::compare_dbt_endpoints(void* arg, const DBT* a_key,
-                                        const DBT* b_key) {
+                                                const DBT* b_key) {
   const char* a = (const char*)a_key->data;
   const char* b = (const char*)b_key->data;
 
@@ -343,7 +343,7 @@ std::vector<DeadlockPath> RangeTreeLockManager::GetDeadlockInfoBuffer() {
 */
 
 void RangeTreeLockManager::on_escalate(TXNID txnid, const locktree* lt,
-                               const range_buffer& buffer, void*) {
+                                       const range_buffer& buffer, void*) {
   auto txn = (PessimisticTransaction*)txnid;
 
   RangeLockList* trx_locks =
@@ -463,7 +463,8 @@ void RangeTreeLockManager::RemoveColumnFamily(const ColumnFamilyHandle* cfh) {
   ltree_lookup_cache_->Scrape(&local_caches, nullptr);
 }
 
-toku::locktree* RangeTreeLockManager::get_locktree_by_cfid(uint32_t column_family_id) {
+toku::locktree* RangeTreeLockManager::get_locktree_by_cfid(
+    uint32_t column_family_id) {
   // First check thread-local cache
   if (ltree_lookup_cache_->Get() == nullptr) {
     ltree_lookup_cache_->Reset(new LockTreeMap());

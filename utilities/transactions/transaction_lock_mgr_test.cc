@@ -47,7 +47,8 @@ class TransactionLockMgrTest : public testing::Test {
         Create it here and pass it to the database through lock_mgr_handle.
       */
       locker_.reset(NewRangeLockManager(mutex_factory_)->getLockManager());
-      range_lock_mgr = std::dynamic_pointer_cast<RangeLockManagerHandle>(locker_);
+      range_lock_mgr =
+          std::dynamic_pointer_cast<RangeLockManagerHandle>(locker_);
       txn_opt.lock_mgr_handle = range_lock_mgr;
     }
 #endif
