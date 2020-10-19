@@ -21,6 +21,7 @@
 #include "rocksdb/utilities/transaction_db.h"
 #include "util/cast_util.h"
 #include "utilities/transactions/lock/lock_manager.h"
+#include "utilities/transactions/lock/range/range_lock_manager.h"
 #include "utilities/transactions/pessimistic_transaction.h"
 #include "utilities/transactions/write_prepared_txn.h"
 
@@ -98,8 +99,11 @@ class PessimisticTransactionDB : public TransactionDB {
 
   Status TryLock(PessimisticTransaction* txn, uint32_t cfh_id,
                  const std::string& key, bool exclusive);
+  Status TryRangeLock(PessimisticTransaction* txn, uint32_t cfh_id,
+                      const Endpoint& start_endp, const Endpoint& end_endp);
 
-  void UnLock(PessimisticTransaction* txn, const LockTracker& keys);
+  void UnLock(PessimisticTransaction* txn, const LockTracker& keys,
+              bool all_keys_hint = false);
   void UnLock(PessimisticTransaction* txn, uint32_t cfh_id,
               const std::string& key);
 
@@ -172,7 +176,12 @@ class PessimisticTransactionDB : public TransactionDB {
   friend class WriteUnpreparedTransactionTest_RecoveryTest_Test;
   friend class WriteUnpreparedTransactionTest_MarkLogWithPrepSection_Test;
 
-  std::unique_ptr<LockManager> lock_manager_;
+  std::shared_ptr<LockManager> lock_manager_;
+
+  // Non-null if we are using a lock manager that supports range locking.
+  RangeLockManagerBase* range_lock_mgr_ = nullptr;
+
+  void init_lock_manager();
 
   // Must be held when adding/dropping column families.
   InstrumentedMutex column_family_mutex_;

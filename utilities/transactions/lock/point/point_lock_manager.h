@@ -67,7 +67,11 @@ class PointLockManager : public LockManager {
     return PointLockTrackerFactory::Get();
   }
 
+  // Creates a new LockMap for this column family.  Caller should guarantee
+  // that this column family does not already exist.
   void AddColumnFamily(const ColumnFamilyHandle* cf) override;
+  // Deletes the LockMap for this column family.  Caller should guarantee that
+  // this column family is no longer in use.
   void RemoveColumnFamily(const ColumnFamilyHandle* cf) override;
 
   Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,

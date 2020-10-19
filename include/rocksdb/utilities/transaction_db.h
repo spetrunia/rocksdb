@@ -31,6 +31,49 @@ enum TxnDBWritePolicy {
 
 const uint32_t kInitialMaxDeadlocks = 5;
 
+class LockManager;
+
+// A lock manager handle
+// The workflow is as follows:
+//  * Use a factory method (like NewRangeLockManager()) to create a lock
+//    manager and get its handle.
+//  * A Handle for a particular kind of lock manager will have extra
+//    methods and parameters to control the lock manager
+//  * Pass the handle to RocksDB in TransactionDBOptions::lock_mgr_handle. It
+//    will be used to perform locking.
+class LockManagerHandle {
+ public:
+  // PessimisticTransactionDB will call this to get the Lock Manager it's going
+  // to use.
+  virtual LockManager* getLockManager() = 0;
+
+  virtual ~LockManagerHandle(){};
+};
+
+// A handle to control RangeLockManager (Range-based lock manager) from outside
+// RocksDB
+class RangeLockManagerHandle : public LockManagerHandle {
+ public:
+  virtual int set_max_lock_memory(size_t max_lock_memory) = 0;
+
+  class Counters {
+   public:
+    uint64_t escalation_count;
+    uint64_t current_lock_memory;
+  };
+
+  virtual Counters GetStatus() = 0;
+  virtual ~RangeLockManagerHandle(){};
+};
+
+// A factory function to create a Range Lock Manager. The created object should
+// be:
+//  1. Passed in TransactionDBOptions::lock_mgr_handle to open the database in
+//     range-locking mode
+//  2. Used to control the lock manager when the DB is already open.
+RangeLockManagerHandle* NewRangeLockManager(
+    std::shared_ptr<TransactionDBMutexFactory> mutex_factory);
+
 struct TransactionDBOptions {
   // Specifies the maximum number of keys that can be locked at the same time
   // per column family.
@@ -91,6 +134,10 @@ struct TransactionDBOptions {
   // logic in myrocks. This hack of simply not rolling back merge operands works
   // for the special way that myrocks uses this operands.
   bool rollback_merge_operands = false;
+
+  // nullptr means use default lock manager.
+  // Other value means the user provides a custom lock manager.
+  std::shared_ptr<LockManagerHandle> lock_mgr_handle;
 
   // If true, the TransactionDB implementation might skip concurrency control
   // unless it is overridden by TransactionOptions or
@@ -198,8 +245,10 @@ struct TransactionDBWriteOptimizations {
 
 struct KeyLockInfo {
   std::string key;
+  std::string key2;  // Used when range locking is used
   std::vector<TransactionID> ids;
   bool exclusive;
+  bool has_key2 = false;  // TRUE <=> key2 has a value
 };
 
 struct RangeLockInfo {
