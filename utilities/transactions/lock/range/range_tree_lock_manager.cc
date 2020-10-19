@@ -49,8 +49,7 @@ void serialize_endpoint(const Endpoint& endp, std::string* buf) {
 Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
                                      uint32_t column_family_id,
                                      const Endpoint& start_endp,
-                                     const Endpoint& end_endp,
-                                     Env*,
+                                     const Endpoint& end_endp, Env*,
                                      bool exclusive) {
   toku::lock_request request;
   request.create(mutex_factory_);
@@ -543,7 +542,7 @@ BaseLockMgr::LockStatusData RangeTreeLockManager::GetLockStatusData() {
 #endif
 
 LockManager::RangeLockStatus RangeTreeLockManager::GetRangeLockStatus() {
-  return {}; // TODO: get the above #if-0-ed code here.
+  return {};  // TODO: get the above #if-0-ed code here.
 }
 
 }  // namespace ROCKSDB_NAMESPACE

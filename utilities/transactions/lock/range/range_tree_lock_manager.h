@@ -6,10 +6,9 @@
 #ifndef OS_WIN
 
 // For DeadlockInfoBuffer:
-#include "utilities/transactions/lock/point/point_lock_manager.h"
-
-#include "utilities/transactions/lock/range/range_lock_manager.h"
 #include "util/thread_local.h"
+#include "utilities/transactions/lock/point/point_lock_manager.h"
+#include "utilities/transactions/lock/range/range_lock_manager.h"
 
 // Lock Tree library:
 #include <locktree/lock_request.h>
@@ -41,8 +40,8 @@ class RangeTreeLockManager : public RangeLockManagerBase,
   //  non-exclusive lock will get an exclusive one)
   using LockManager::TryLock;
   Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
-                 const Endpoint& start_endp, const Endpoint& end_endp,
-                 Env *env, bool exclusive) override;
+                 const Endpoint& start_endp, const Endpoint& end_endp, Env* env,
+                 bool exclusive) override;
 
   Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
                  const std::string& key, Env* env, bool exclusive) override {
@@ -55,8 +54,8 @@ class RangeTreeLockManager : public RangeLockManagerBase,
   void UnLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
               const std::string& key, Env* env) override;
   void UnLock(PessimisticTransaction*, ColumnFamilyId, const Endpoint&,
-              const Endpoint&, Env*) {
-    // TODO: range unlock does nothing...
+              const Endpoint&, Env*) override {
+      // TODO: range unlock does nothing...
   };
 
   // Release all locks the transaction is holding
@@ -75,18 +74,17 @@ class RangeTreeLockManager : public RangeLockManagerBase,
 
   Counters GetStatus() override;
 
-  //LockStatusData GetLockStatusData() override;
+  // LockStatusData GetLockStatusData() override;
 
   bool IsPointLockSupported() const override {
     // This doesn't mean that one could not have acquired point locks.
     // this means we can't implement GetPointLockStatus().
     return false;
   }
- 
-  
-  PointLockStatus GetPointLockStatus() override { 
+
+  PointLockStatus GetPointLockStatus() override {
     // No point locks
-    return {}; 
+    return {};
   }
 
   RangeLockStatus GetRangeLockStatus() override;

@@ -19,7 +19,6 @@
 #include "test_util/testutil.h"
 #include "utilities/transactions/pessimistic_transaction_db.h"
 
-
 #ifdef ENABLE_RANGE_LOCKING_TESTS
 #include "utilities/transactions/lock/range/range_lock_manager.h"
 #endif
@@ -404,7 +403,6 @@ TEST_P(AnyLockManagerTest, Deadlock) {
 // This test doesn't work with Range Lock Manager, because Range Lock Manager
 // doesn't support deadlock_detect_depth.
 
-
 TEST_F(PointLockManagerTest, DeadlockDepthExceeded) {
   // Tests that when detecting deadlock, if the detection depth is exceeded,
   // it's also viewed as deadlock.
@@ -462,8 +460,10 @@ TEST_F(PointLockManagerTest, DeadlockDepthExceeded) {
 }
 
 #ifdef ENABLE_RANGE_LOCKING_TESTS
-//INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest, ::testing::Bool());
-INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest, ::testing::Values(false));
+// INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
+// ::testing::Bool());
+INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
+                        ::testing::Values(false));
 #else
 INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
                         ::testing::Values(false));

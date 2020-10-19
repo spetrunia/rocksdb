@@ -47,7 +47,8 @@ void PessimisticTransactionDB::init_lock_manager() {
       range_lock_mgr_ = static_cast_with_check<RangeLockManagerBase>(mgr);
   } else {
     // Use point lock manager by default
-    lock_manager_ = std::shared_ptr<LockManager>(new PointLockManager(this, txn_db_options_));
+    lock_manager_ = std::shared_ptr<LockManager>(
+        new PointLockManager(this, txn_db_options_));
     range_lock_mgr_ = nullptr;
   }
 }
