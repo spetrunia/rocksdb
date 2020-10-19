@@ -50,9 +50,9 @@ class LockManagerHandle {
   virtual ~LockManagerHandle(){};
 };
 
-// A handle to control RangeLockMgr (Range-based lock manager) from outside
+// A handle to control RangeLockManager (Range-based lock manager) from outside
 // RocksDB
-class RangeLockMgrHandle : public LockManagerHandle {
+class RangeLockManagerHandle : public LockManagerHandle {
  public:
   virtual int set_max_lock_memory(size_t max_lock_memory) = 0;
 
@@ -63,7 +63,7 @@ class RangeLockMgrHandle : public LockManagerHandle {
   };
 
   virtual Counters GetStatus() = 0;
-  virtual ~RangeLockMgrHandle(){};
+  virtual ~RangeLockManagerHandle(){};
 };
 
 // A factory function to create a Range Lock Manager. The created object should
@@ -71,7 +71,7 @@ class RangeLockMgrHandle : public LockManagerHandle {
 //  1. Passed in TransactionDBOptions::lock_mgr_handle to open the database in
 //     range-locking mode
 //  2. Used to control the lock manager when the DB is already open.
-RangeLockMgrHandle* NewRangeLockManager(
+RangeLockManagerHandle* NewRangeLockManager(
     std::shared_ptr<TransactionDBMutexFactory> mutex_factory);
 
 struct TransactionDBOptions {

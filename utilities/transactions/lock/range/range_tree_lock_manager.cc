@@ -1,12 +1,7 @@
-//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
-//  This source code is licensed under both the GPLv2 (found in the
-//  COPYING file in the root directory) and Apache 2.0 License
-//  (found in the LICENSE.Apache file in the root directory).
-
 #ifndef ROCKSDB_LITE
 #ifndef OS_WIN
 
-#include "utilities/transactions/lock/range/range_lock_mgr.h"
+#include "utilities/transactions/lock/range/range_tree_lock_manager.h"
 
 #include <algorithm>
 #include <cinttypes>
@@ -19,17 +14,18 @@
 #include "util/cast_util.h"
 #include "util/hash.h"
 #include "util/thread_local.h"
-#include "utilities/transactions/lock/range/range_lock_tracker.h"
+#include "utilities/transactions/lock/range/range_tree_lock_tracker.h"
 #include "utilities/transactions/pessimistic_transaction_db.h"
 #include "utilities/transactions/transaction_db_mutex_impl.h"
 
 namespace ROCKSDB_NAMESPACE {
 
 /////////////////////////////////////////////////////////////////////////////
-// RangeLockMgr - a lock manager that supports range locking
+// RangeTreeLockManager -  A Range Lock Manager that uses PerconaFT's
+// locktree library
 /////////////////////////////////////////////////////////////////////////////
 
-RangeLockMgrHandle* NewRangeLockManager(
+RangeLockManagerHandle* NewRangeLockManager(
     std::shared_ptr<TransactionDBMutexFactory> mutex_factory) {
   std::shared_ptr<TransactionDBMutexFactory> use_factory;
 
@@ -38,7 +34,7 @@ RangeLockMgrHandle* NewRangeLockManager(
   else
     use_factory.reset(new TransactionDBMutexFactoryImpl());
 
-  return new RangeLockMgr(use_factory);
+  return new RangeTreeLockManager(use_factory);
 }
 
 static const char SUFFIX_INFIMUM = 0x0;
@@ -50,7 +46,7 @@ void serialize_endpoint(const Endpoint& endp, std::string* buf) {
 }
 
 // Get a range lock on [start_key; end_key] range
-Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
+Status RangeTreeLockManager::TryRangeLock(PessimisticTransaction* txn,
                                   uint32_t column_family_id,
                                   const Endpoint& start_endp,
                                   const Endpoint& end_endp, bool exclusive) {
@@ -58,7 +54,7 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
   request.create(mutex_factory_);
   DBT start_key_dbt, end_key_dbt;
 
-  TEST_SYNC_POINT("RangeLockMgr::TryRangeLock:enter");
+  TEST_SYNC_POINT("RangeTreeLockManager::TryRangeLock:enter");
   std::string start_key;
   std::string end_key;
   serialize_endpoint(start_endp, &start_key);
@@ -110,7 +106,7 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
 
     static void lock_wait_callback(void* cdata, TXNID /*waiter*/,
                                    TXNID waitee) {
-      TEST_SYNC_POINT("RangeLockMgr::TryRangeLock:WaitingTxn");
+      TEST_SYNC_POINT("RangeTreeLockManager::TryRangeLock:WaitingTxn");
       auto self = (struct st_wait_info*)cdata;
       // we know that the waiter is self->txn->GetID() (TODO: assert?)
       if (!self->done) {
@@ -154,9 +150,9 @@ Status RangeLockMgr::TryRangeLock(PessimisticTransaction* txn,
   }
 
   // Don't: save the acquired lock in txn->owned_locks.
-  // It is now responsibility of RangeLockMgr
+  // It is now responsibility of RangeTreeLockManager
   //  RangeLockList* range_list=
-  //  ((RangeLockTracker*)txn->tracked_locks_.get())->getOrCreateList();
+  //  ((RangeTreeLockTracker*)txn->tracked_locks_.get())->getOrCreateList();
   //  range_list->append(column_family_id, &start_key_dbt, &end_key_dbt);
 
   return Status::OK();
@@ -179,7 +175,7 @@ static void range_lock_mgr_release_lock_int(toku::locktree* lt,
   range_buf.destroy();
 }
 
-void RangeLockMgr::UnLock(PessimisticTransaction* txn,
+void RangeTreeLockManager::UnLock(PessimisticTransaction* txn,
                           uint32_t column_family_id, const std::string& key,
                           Env*) {
   auto lt = get_locktree_by_cfid(column_family_id);
@@ -188,7 +184,7 @@ void RangeLockMgr::UnLock(PessimisticTransaction* txn,
       lt, nullptr /* lock_wait_needed_callback */);
 }
 
-void RangeLockMgr::UnLock(const PessimisticTransaction* /*txn*/,
+void RangeTreeLockManager::UnLock(const PessimisticTransaction* /*txn*/,
                           const LockTracker&, Env*) {
 // psergey-merge-todo:
 #if 0  
@@ -208,11 +204,11 @@ void RangeLockMgr::UnLock(const PessimisticTransaction* /*txn*/,
 #endif
 }
 
-void RangeLockMgr::UnLockAll(const PessimisticTransaction* txn, Env*) {
+void RangeTreeLockManager::UnLockAll(const PessimisticTransaction* txn, Env*) {
   // tracked_locks_->range_list may hold nullptr if the transaction has never
   // acquired any locks.
   RangeLockList* range_list =
-      ((RangeLockTracker*)txn->tracked_locks_.get())->getList();
+      ((RangeTreeLockTracker*)txn->tracked_locks_.get())->getList();
 
   if (range_list) {
     {
@@ -225,7 +221,7 @@ void RangeLockMgr::UnLockAll(const PessimisticTransaction* txn, Env*) {
         Additional complication here is internal mutex(es) in the locktree
         (let's call them latches):
         - Lock escalation first obtains latches on the lock tree
-        - Then, it calls RangeLockMgr::on_escalate to replace transaction's
+        - Then, it calls RangeTreeLockManager::on_escalate to replace transaction's
           range_list->buffer_.
           = Access to that buffer must be synchronized, so it will want to
           acquire the range_list->mutex_.
@@ -266,7 +262,7 @@ void RangeLockMgr::UnLockAll(const PessimisticTransaction* txn, Env*) {
   }
 }
 
-int RangeLockMgr::compare_dbt_endpoints(void* arg, const DBT* a_key,
+int RangeTreeLockManager::compare_dbt_endpoints(void* arg, const DBT* a_key,
                                         const DBT* b_key) {
   const char* a = (const char*)a_key->data;
   const char* b = (const char*)b_key->data;
@@ -319,7 +315,7 @@ void UnrefLockTreeMapsCache(void* ptr) {
 }
 }  // anonymous namespace
 
-RangeLockMgr::RangeLockMgr(
+RangeTreeLockManager::RangeTreeLockManager(
     std::shared_ptr<TransactionDBMutexFactory> mutex_factory)
     : mutex_factory_(mutex_factory),
       ltree_lookup_cache_(new ThreadLocalPtr(&UnrefLockTreeMapsCache)),
@@ -327,11 +323,11 @@ RangeLockMgr::RangeLockMgr(
   ltm_.create(on_create, on_destroy, on_escalate, NULL, mutex_factory_);
 }
 
-void RangeLockMgr::Resize(uint32_t target_size) {
+void RangeTreeLockManager::Resize(uint32_t target_size) {
   dlock_buffer_.Resize(target_size);
 }
 
-std::vector<DeadlockPath> RangeLockMgr::GetDeadlockInfoBuffer() {
+std::vector<DeadlockPath> RangeTreeLockManager::GetDeadlockInfoBuffer() {
   return dlock_buffer_.PrepareBuffer();
 }
 
@@ -346,12 +342,12 @@ std::vector<DeadlockPath> RangeLockMgr::GetDeadlockInfoBuffer() {
   @param void*   Callback context
 */
 
-void RangeLockMgr::on_escalate(TXNID txnid, const locktree* lt,
+void RangeTreeLockManager::on_escalate(TXNID txnid, const locktree* lt,
                                const range_buffer& buffer, void*) {
   auto txn = (PessimisticTransaction*)txnid;
 
   RangeLockList* trx_locks =
-      ((RangeLockTracker*)txn->tracked_locks_.get())->getList();
+      ((RangeTreeLockTracker*)txn->tracked_locks_.get())->getList();
 
   MutexLock l(&trx_locks->mutex_);
   if (trx_locks->releasing_locks_) {
@@ -382,7 +378,7 @@ void RangeLockMgr::on_escalate(TXNID txnid, const locktree* lt,
   // lt->get_manager()->note_mem_used(ranges.buffer->total_memory_size());
 }
 
-RangeLockMgr::~RangeLockMgr() {
+RangeTreeLockManager::~RangeTreeLockManager() {
   // TODO: at this point, synchronization is not needed, right?
 
   autovector<void*> local_caches;
@@ -397,7 +393,7 @@ RangeLockMgr::~RangeLockMgr() {
   ltm_.destroy();
 }
 
-RangeLockMgrHandle::Counters RangeLockMgr::GetStatus() {
+RangeLockManagerHandle::Counters RangeTreeLockManager::GetStatus() {
   LTM_STATUS_S ltm_status_test;
   ltm_.get_status(&ltm_status_test);
   Counters res;
@@ -418,7 +414,7 @@ RangeLockMgrHandle::Counters RangeLockMgr::GetStatus() {
   return res;
 }
 
-void RangeLockMgr::AddColumnFamily(const ColumnFamilyHandle* cfh) {
+void RangeTreeLockManager::AddColumnFamily(const ColumnFamilyHandle* cfh) {
   uint32_t column_family_id = cfh->GetID();
 
   InstrumentedMutexLock l(&ltree_map_mutex_);
@@ -437,7 +433,7 @@ void RangeLockMgr::AddColumnFamily(const ColumnFamilyHandle* cfh) {
   }
 }
 
-void RangeLockMgr::RemoveColumnFamily(const ColumnFamilyHandle* cfh) {
+void RangeTreeLockManager::RemoveColumnFamily(const ColumnFamilyHandle* cfh) {
   uint32_t column_family_id = cfh->GetID();
   // Remove lock_map for this column family.  Since the lock map is stored
   // as a shared ptr, concurrent transactions can still keep using it
@@ -467,7 +463,7 @@ void RangeLockMgr::RemoveColumnFamily(const ColumnFamilyHandle* cfh) {
   ltree_lookup_cache_->Scrape(&local_caches, nullptr);
 }
 
-toku::locktree* RangeLockMgr::get_locktree_by_cfid(uint32_t column_family_id) {
+toku::locktree* RangeTreeLockManager::get_locktree_by_cfid(uint32_t column_family_id) {
   // First check thread-local cache
   if (ltree_lookup_cache_->Get() == nullptr) {
     ltree_lookup_cache_->Reset(new LockTreeMap());
@@ -530,7 +526,7 @@ static void push_into_lock_status_data(void* param, const DBT* left,
   ctx->data->insert({ctx->cfh_id, info});
 }
 
-BaseLockMgr::LockStatusData RangeLockMgr::GetLockStatusData() {
+BaseLockMgr::LockStatusData RangeTreeLockManager::GetLockStatusData() {
   LockStatusData data;
   {
     InstrumentedMutexLock l(&ltree_map_mutex_);

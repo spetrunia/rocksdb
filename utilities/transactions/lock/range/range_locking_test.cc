@@ -30,7 +30,7 @@ class RangeLockingTest : public ::testing::Test {
   std::string dbname;
   Options options;
 
-  std::shared_ptr<RangeLockMgrHandle> range_lock_mgr;
+  std::shared_ptr<RangeLockManagerHandle> range_lock_mgr;
   TransactionDBOptions txn_db_options;
 
   RangeLockingTest() : db(nullptr) {
@@ -123,7 +123,7 @@ TEST_F(RangeLockingTest, MyRocksLikeUpdate) {
   bool try_range_lock_called = false;
 
   ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->SetCallBack(
-      "RangeLockMgr::TryRangeLock:enter",
+      "RangeTreeLockManager::TryRangeLock:enter",
       [&](void* /*arg*/) { try_range_lock_called = true; });
   ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->EnableProcessing();
 

@@ -1,61 +1,29 @@
-//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
-//  This source code is licensed under both the GPLv2 (found in the
-//  COPYING file in the root directory) and Apache 2.0 License
-//  (found in the LICENSE.Apache file in the root directory).
-
+//
+// Range Lock Manager that uses PerconaFT's locktree library
+// 
 #pragma once
 #ifndef ROCKSDB_LITE
-
-#include "utilities/transactions/lock/lock_mgr.h"
-
-// TODO: move this piece to a separate file:
-namespace ROCKSDB_NAMESPACE {
-
-/*
-  A basic class for all Range-based lock managers.
-*/
-class RangeLockManagerBase : public BaseLockMgr {
- public:
-  // Get a lock on a range
-  // (TODO: TryLock accepts Env* parameter. Should this function do it, too?)
-  virtual Status TryRangeLock(PessimisticTransaction* txn,
-                              uint32_t column_family_id,
-                              const Endpoint& start_endp,
-                              const Endpoint& end_endp, bool exclusive) = 0;
-
-  // Get a point lock
-  // This is the same as getting a range lock on a single-point range.
-  Status TryLock(PessimisticTransaction* txn, uint32_t column_family_id,
-                 const std::string& key, Env*, bool exclusive) override {
-    Endpoint endp(key.data(), key.size(), false);
-    return TryRangeLock(txn, column_family_id, endp, endp, exclusive);
-  }
-
-  // Release all locks the transaction is holding
-  virtual void UnLockAll(const PessimisticTransaction* txn, Env* env) = 0;
-};
-
-}  // namespace ROCKSDB_NAMESPACE
-
 #ifndef OS_WIN
+
+#include "utilities/transactions/lock/range/range_lock_manager.h"
 
 // Lock Tree library:
 #include <locktree/lock_request.h>
 #include <locktree/locktree.h>
 
-#include "utilities/transactions/lock/range/range_lock_tracker.h"
+#include "utilities/transactions/lock/range/range_tree_lock_tracker.h"
 
 namespace ROCKSDB_NAMESPACE {
 
 using namespace toku;
 
 /*
-  A lock manager that supports Range-based locking.
+  A Range Lock Manager that uses PerconaFT's locktree library
 */
-class RangeLockMgr : public RangeLockManagerBase, public RangeLockMgrHandle {
+class RangeTreeLockManager : public RangeLockManagerBase, public RangeLockManagerHandle {
  public:
   LockTrackerFactory* getLockTrackerFactory() override {
-    return &RangeLockTrackerFactory::instance;
+    return &RangeTreeLockTrackerFactory::instance;
   }
   BaseLockMgr* getLockManager() override { return this; }
   RangeLockManagerBase* getRangeLockManager() override { return this; }
@@ -81,9 +49,10 @@ class RangeLockMgr : public RangeLockManagerBase, public RangeLockMgrHandle {
   void UnLock(PessimisticTransaction* txn, uint32_t column_family_id,
               const std::string& key, Env* env) override;
 
-  RangeLockMgr(std::shared_ptr<TransactionDBMutexFactory> mutex_factory);
+  RangeTreeLockManager(
+    std::shared_ptr<TransactionDBMutexFactory> mutex_factory);
 
-  ~RangeLockMgr();
+  ~RangeTreeLockManager();
 
   int set_max_lock_memory(size_t max_lock_memory) override {
     return ltm_.set_max_lock_memory(max_lock_memory);

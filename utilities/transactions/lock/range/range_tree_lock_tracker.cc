@@ -1,15 +1,17 @@
-
+//
+// A lock tracker to be used together with RangeTreeLockManager
+//
 #ifndef ROCKSDB_LITE
 #ifndef OS_WIN
-#include "utilities/transactions/lock/range/range_lock_tracker.h"
 
-#include "utilities/transactions/lock/range/range_lock_mgr.h"
+#include "utilities/transactions/lock/range/range_tree_lock_tracker.h"
+#include "utilities/transactions/lock/range/range_tree_lock_manager.h"
 
 namespace ROCKSDB_NAMESPACE {
 
-RangeLockTrackerFactory RangeLockTrackerFactory::instance;
+RangeTreeLockTrackerFactory RangeTreeLockTrackerFactory::instance;
 
-RangeLockList *RangeLockTracker::getOrCreateList() {
+RangeLockList *RangeTreeLockTracker::getOrCreateList() {
   RangeLockList *res;
   if ((res = getList())) return res;
 
@@ -18,7 +20,7 @@ RangeLockList *RangeLockTracker::getOrCreateList() {
   return getList();
 }
 
-void RangeLockTracker::Track(const PointLockRequest &lock_req) {
+void RangeTreeLockTracker::Track(const PointLockRequest &lock_req) {
   DBT key_dbt;
   std::string key;
   serialize_endpoint(Endpoint(lock_req.key, false), &key);
@@ -27,7 +29,7 @@ void RangeLockTracker::Track(const PointLockRequest &lock_req) {
   rl->append(lock_req.column_family_id, &key_dbt, &key_dbt);
 }
 
-void RangeLockTracker::Track(const RangeLockRequest &lock_req) {
+void RangeTreeLockTracker::Track(const RangeLockRequest &lock_req) {
   DBT start_dbt, end_dbt;
   std::string start_key, end_key;
 
@@ -41,7 +43,7 @@ void RangeLockTracker::Track(const RangeLockRequest &lock_req) {
   rl->append(lock_req.column_family_id, &start_dbt, &end_dbt);
 }
 
-PointLockStatus RangeLockTracker::GetPointLockStatus(
+PointLockStatus RangeTreeLockTracker::GetPointLockStatus(
     ColumnFamilyId /*cf_id*/, const std::string & /*key*/) const {
   // TODO: what to do here if we are holding a range lock that is embedding the
   // point?
@@ -54,7 +56,7 @@ PointLockStatus RangeLockTracker::GetPointLockStatus(
   return p;
 }
 
-void RangeLockTracker::Clear() {
+void RangeTreeLockTracker::Clear() {
   // This will delete the RangeLockList and cause a proper cleanup
   range_list = nullptr;
 }

@@ -330,7 +330,7 @@ class TransactionBaseImpl : public Transaction {
   //
   // Declared as public because
   //  - RangeLocking's lock escalation may replace it
-  //  - RangeLockMgr::UnLockAll needs access to it
+  //  - RangeTreeLockManager::UnLockAll needs access to it
  public:
   std::unique_ptr<LockTracker> tracked_locks_;
 

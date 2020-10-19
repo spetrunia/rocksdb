@@ -19,7 +19,7 @@
 #include "utilities/transactions/lock/point/point_lock_mgr.h"
 
 #ifdef ENABLE_RANGE_LOCKING_TESTS
-#include "utilities/transactions/lock/range/range_lock_mgr.h"
+#include "utilities/transactions/lock/range/range_lock_manager.h"
 #endif
 
 #include "utilities/transactions/transaction_db_mutex_impl.h"
@@ -46,8 +46,8 @@ class TransactionLockMgrTest : public testing::Test {
         TransactionDB is using.
         Create it here and pass it to the database through lock_mgr_handle.
       */
-      locker_.reset(new RangeLockMgr(mutex_factory_));
-      range_lock_mgr = std::dynamic_pointer_cast<RangeLockMgrHandle>(locker_);
+      locker_.reset(NewRangeLockManager(mutex_factory_)->getLockManager());
+      range_lock_mgr = std::dynamic_pointer_cast<RangeLockManagerHandle>(locker_);
       txn_opt.lock_mgr_handle = range_lock_mgr;
     }
 #endif
@@ -79,7 +79,7 @@ class TransactionLockMgrTest : public testing::Test {
   Env* env_;
   std::shared_ptr<BaseLockMgr> locker_;
   bool use_range_locking = false;
-  std::shared_ptr<RangeLockMgrHandle> range_lock_mgr;
+  std::shared_ptr<RangeLockManagerHandle> range_lock_mgr;
 
   // With Range Locking, functions like GetLockStatusData() return range
   // endpoints, not the keys themselves. This function extracts the key.
@@ -305,7 +305,7 @@ port::Thread BlockUntilWaitingTxn(bool use_range_locking,
                                   std::function<void()> f) {
   std::atomic<bool> reached(false);
   const char* sync_point_name =
-      use_range_locking ? "RangeLockMgr::TryRangeLock:WaitingTxn"
+      use_range_locking ? "RangeTreeLockManager::TryRangeLock:WaitingTxn"
                         : "TransactionLockMgr::AcquireWithTimeout:WaitingTxn";
   ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->SetCallBack(
       sync_point_name, [&](void* /*arg*/) { reached.store(true); });

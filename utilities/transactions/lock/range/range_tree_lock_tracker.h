@@ -28,7 +28,7 @@ class RangeLockList;
 
   Note: the list of locks may differ slighly from the contents of the lock
   tree, due to concurrency between lock acquisition, lock release, and lock
-  escalation. See MDEV-18227 and RangeLockMgr::UnLockAll for details.
+  escalation. See MDEV-18227 and RangeTreeLockManager::UnLockAll for details.
   This property is currently harmless.
 */
 class RangeLockList /*: public PessimisticTransaction::Lock--Storage */ {
@@ -63,19 +63,19 @@ class RangeLockList /*: public PessimisticTransaction::Lock--Storage */ {
 
   std::unordered_map<uint32_t, std::shared_ptr<toku::range_buffer>> buffers_;
 
-  // Synchronization. See RangeLockMgr::UnLockAll for details
+  // Synchronization. See RangeTreeLockManager::UnLockAll for details
   port::Mutex mutex_;
   bool releasing_locks_;
 };
 
 // Tracks range locks
 
-class RangeLockTracker : public LockTracker {
+class RangeTreeLockTracker : public LockTracker {
  public:
-  RangeLockTracker() : range_list(nullptr) {}
+  RangeTreeLockTracker() : range_list(nullptr) {}
 
-  RangeLockTracker(const RangeLockTracker&) = delete;
-  RangeLockTracker& operator=(const RangeLockTracker&) = delete;
+  RangeTreeLockTracker(const RangeTreeLockTracker&) = delete;
+  RangeTreeLockTracker& operator=(const RangeTreeLockTracker&) = delete;
 
   void Track(const PointLockRequest&) override;
   void Track(const RangeLockRequest&) override;
@@ -129,11 +129,11 @@ class RangeLockTracker : public LockTracker {
   std::shared_ptr<RangeLockList> range_list;
 };
 
-class RangeLockTrackerFactory : public LockTrackerFactory {
+class RangeTreeLockTrackerFactory : public LockTrackerFactory {
  public:
-  LockTracker* Create() const override { return new RangeLockTracker; }
+  LockTracker* Create() const override { return new RangeTreeLockTracker; }
 
-  static RangeLockTrackerFactory instance;
+  static RangeTreeLockTrackerFactory instance;
 };
 
 }  // namespace ROCKSDB_NAMESPACE
