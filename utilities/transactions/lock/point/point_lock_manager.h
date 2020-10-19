@@ -17,16 +17,30 @@
 #include "util/autovector.h"
 #include "util/hash_map.h"
 #include "util/thread_local.h"
-#include "utilities/transactions/lock/lock_mgr.h"
-#include "utilities/transactions/lock/lock_tracker.h"
+#include "utilities/transactions/lock/lock_manager.h"
 #include "utilities/transactions/lock/point/point_lock_tracker.h"
-#include "utilities/transactions/pessimistic_transaction.h"
 
 namespace ROCKSDB_NAMESPACE {
 
+class ColumnFamilyHandle;
 struct LockInfo;
 struct LockMap;
 struct LockMapStripe;
+
+struct DeadlockInfoBuffer {
+ private:
+  std::vector<DeadlockPath> paths_buffer_;
+  uint32_t buffer_idx_;
+  std::mutex paths_buffer_mutex_;
+  std::vector<DeadlockPath> Normalize();
+
+ public:
+  explicit DeadlockInfoBuffer(uint32_t n_latest_dlocks)
+      : paths_buffer_(n_latest_dlocks), buffer_idx_(0) {}
+  void AddNewPath(DeadlockPath path);
+  void Resize(uint32_t target_size);
+  std::vector<DeadlockPath> PrepareBuffer();
+};
 
 struct TrackedTrxInfo {
   autovector<TransactionID> m_neighbors;
@@ -35,47 +49,51 @@ struct TrackedTrxInfo {
   std::string m_waiting_key;
 };
 
-class PessimisticTransactionDB;
-
-// Point lock manager
-class TransactionLockMgr : public BaseLockMgr {
+class PointLockManager : public LockManager {
  public:
-  TransactionLockMgr(TransactionDB* txn_db, size_t default_num_stripes,
-                     int64_t max_num_locks, uint32_t max_num_deadlocks,
-                     std::shared_ptr<TransactionDBMutexFactory> factory);
+  PointLockManager(PessimisticTransactionDB* db,
+                   const TransactionDBOptions& opt);
   // No copying allowed
-  TransactionLockMgr(const TransactionLockMgr&) = delete;
-  void operator=(const TransactionLockMgr&) = delete;
+  PointLockManager(const PointLockManager&) = delete;
+  PointLockManager& operator=(const PointLockManager&) = delete;
 
-  ~TransactionLockMgr();
+  ~PointLockManager() override;
 
-  LockTrackerFactory* getLockTrackerFactory() override {
-    return &PointLockTrackerFactory::instance;
+  bool IsPointLockSupported() const override { return true; }
+
+  bool IsRangeLockSupported() const override { return false; }
+
+  const LockTrackerFactory& GetLockTrackerFactory() const override {
+    return PointLockTrackerFactory::Get();
   }
 
   // Creates a new LockMap for this column family.  Caller should guarantee
   // that this column family does not already exist.
-  void AddColumnFamily(const ColumnFamilyHandle* cfh) override;
-
+  void AddColumnFamily(const ColumnFamilyHandle* cf) override;
   // Deletes the LockMap for this column family.  Caller should guarantee that
   // this column family is no longer in use.
-  void RemoveColumnFamily(const ColumnFamilyHandle* cfh) override;
+  void RemoveColumnFamily(const ColumnFamilyHandle* cf) override;
 
-  // Attempt to lock key.  If OK status is returned, the caller is responsible
-  // for calling UnLock() on this key.
-  Status TryLock(PessimisticTransaction* txn, uint32_t column_family_id,
+  Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
                  const std::string& key, Env* env, bool exclusive) override;
+  Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
+                 const Endpoint& start, const Endpoint& end, Env* env,
+                 bool exclusive) override;
 
-  // Unlock a key locked by TryLock().  txn must be the same Transaction that
-  // locked this key.
-  void UnLock(const PessimisticTransaction* txn, const LockTracker& tracker,
+  void UnLock(PessimisticTransaction* txn, const LockTracker& tracker,
               Env* env) override;
-  void UnLock(PessimisticTransaction* txn, uint32_t column_family_id,
+  void UnLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
               const std::string& key, Env* env) override;
+  void UnLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
+              const Endpoint& start, const Endpoint& end, Env* env) override;
 
-  LockStatusData GetLockStatusData() override;
+  PointLockStatus GetPointLockStatus() override;
+
+  RangeLockStatus GetRangeLockStatus() override;
+
   std::vector<DeadlockPath> GetDeadlockInfoBuffer() override;
-  void Resize(uint32_t) override;
+
+  void Resize(uint32_t new_size) override;
 
  private:
   PessimisticTransactionDB* txn_db_impl_;
@@ -130,7 +148,7 @@ class TransactionLockMgr : public BaseLockMgr {
                        LockInfo&& lock_info, uint64_t* wait_time,
                        autovector<TransactionID>* txn_ids);
 
-  void UnLockKey(const PessimisticTransaction* txn, const std::string& key,
+  void UnLockKey(PessimisticTransaction* txn, const std::string& key,
                  LockMapStripe* stripe, LockMap* lock_map, Env* env);
 
   bool IncrementWaiters(const PessimisticTransaction* txn,

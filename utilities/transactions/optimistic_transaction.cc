@@ -30,7 +30,7 @@ OptimisticTransaction::OptimisticTransaction(
     OptimisticTransactionDB* txn_db, const WriteOptions& write_options,
     const OptimisticTransactionOptions& txn_options)
     : TransactionBaseImpl(txn_db->GetBaseDB(), write_options,
-                          &PointLockTrackerFactory::instance),
+                          PointLockTrackerFactory::Get()),
       txn_db_(txn_db) {
   Initialize(txn_options);
 }

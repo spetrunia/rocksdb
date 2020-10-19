@@ -9,14 +9,16 @@
 #define ENABLE_RANGE_LOCKING_TESTS
 #endif
 
+#include "utilities/transactions/lock/point/point_lock_manager.h"
+
 #include "file/file_util.h"
 #include "port/port.h"
 #include "port/stack_trace.h"
 #include "rocksdb/utilities/transaction_db.h"
 #include "test_util/testharness.h"
 #include "test_util/testutil.h"
-#include "utilities/transactions/lock/lock_mgr.h"
-#include "utilities/transactions/lock/point/point_lock_mgr.h"
+#include "utilities/transactions/pessimistic_transaction_db.h"
+
 
 #ifdef ENABLE_RANGE_LOCKING_TESTS
 #include "utilities/transactions/lock/range/range_lock_manager.h"
@@ -26,11 +28,34 @@
 
 namespace ROCKSDB_NAMESPACE {
 
-class TransactionLockMgrTest : public testing::Test {
+class MockColumnFamilyHandle : public ColumnFamilyHandle {
+ public:
+  explicit MockColumnFamilyHandle(ColumnFamilyId cf_id) : cf_id_(cf_id) {}
+
+  ~MockColumnFamilyHandle() override {}
+
+  const std::string& GetName() const override { return name_; }
+
+  ColumnFamilyId GetID() const override { return cf_id_; }
+
+  Status GetDescriptor(ColumnFamilyDescriptor*) override {
+    return Status::OK();
+  }
+
+  const Comparator* GetComparator() const override {
+    return BytewiseComparator();
+  }
+
+ private:
+  ColumnFamilyId cf_id_;
+  std::string name_ = "MockCF";
+};
+
+class PointLockManagerTest : public testing::Test {
  public:
   void SetUp() override {
     env_ = Env::Default();
-    db_dir_ = test::PerThreadDBPath("transaction_lock_mgr_test");
+    db_dir_ = test::PerThreadDBPath("point_lock_manager_test");
     ASSERT_OK(env_->CreateDir(db_dir_));
     mutex_factory_ = std::make_shared<TransactionDBMutexFactoryImpl>();
 
@@ -38,6 +63,7 @@ class TransactionLockMgrTest : public testing::Test {
     opt.create_if_missing = true;
     TransactionDBOptions txn_opt;
     txn_opt.transaction_lock_timeout = 0;
+    txn_opt.custom_mutex_factory = mutex_factory_;
 
 #ifdef ENABLE_RANGE_LOCKING_TESTS
     if (use_range_locking) {
@@ -59,9 +85,8 @@ class TransactionLockMgrTest : public testing::Test {
       // If not using range locking, this test creates a separate lock manager
       // object (right, NOT the one TransactionDB is using!), and runs tests on
       // that.
-      locker_ = std::shared_ptr<TransactionLockMgr>(new TransactionLockMgr(
-          db_, txn_opt.num_stripes, txn_opt.max_num_locks,
-          txn_opt.max_num_deadlocks, mutex_factory_));
+      locker_.reset(new PointLockManager(
+          static_cast<PessimisticTransactionDB*>(db_), txn_opt));
     }
   }
 
@@ -78,7 +103,7 @@ class TransactionLockMgrTest : public testing::Test {
 
  protected:
   Env* env_;
-  std::shared_ptr<BaseLockMgr> locker_;
+  std::shared_ptr<LockManager> locker_;
   bool use_range_locking = false;
   std::shared_ptr<RangeLockManagerHandle> range_lock_mgr;
 
@@ -97,42 +122,17 @@ class TransactionLockMgrTest : public testing::Test {
   TransactionDB* db_;
 };
 
-class AnyLockManagerTest : public TransactionLockMgrTest,
+class AnyLockManagerTest : public PointLockManagerTest,
                            public testing::WithParamInterface<bool> {
  public:
   AnyLockManagerTest() { use_range_locking = GetParam(); }
 };
 
-class MockColumnFamily : public ColumnFamilyHandle {
-  uint32_t id_;
-  std::string name;
-
- public:
-  ~MockColumnFamily() {}
-  MockColumnFamily(uint32_t id_arg) : id_(id_arg) {}
-  uint32_t GetID() const override { return id_; }
-
-  const std::string& GetName() const override { return name; }
-
-  Status GetDescriptor(ColumnFamilyDescriptor*) override {
-    assert(0);
-    return Status::NotSupported();
-  }
-
-  const Comparator* GetComparator() const override {
-    return BytewiseComparator();
-  };
-};
-
-MockColumnFamily cf_1024(1024);
-MockColumnFamily cf_2048(2048);
-
-MockColumnFamily cf_1(1);
-
 // This test is not applicable for Range Lock manager as Range Lock Manager
 // operates on Column Families, not their ids.
-TEST_F(TransactionLockMgrTest, LockNonExistingColumnFamily) {
-  locker_->RemoveColumnFamily(&cf_1024);
+TEST_F(PointLockManagerTest, LockNonExistingColumnFamily) {
+  MockColumnFamilyHandle cf(1024);
+  locker_->RemoveColumnFamily(&cf);
   auto txn = NewTxn();
   auto s = locker_->TryLock(txn, 1024, "k", env_, true);
   ASSERT_TRUE(s.IsInvalidArgument());
@@ -140,9 +140,10 @@ TEST_F(TransactionLockMgrTest, LockNonExistingColumnFamily) {
   delete txn;
 }
 
-TEST_P(AnyLockManagerTest, LockStatus) {
-  locker_->AddColumnFamily(&cf_1024);
-  locker_->AddColumnFamily(&cf_2048);
+TEST_F(PointLockManagerTest, LockStatus) {
+  MockColumnFamilyHandle cf1(1024), cf2(2048);
+  locker_->AddColumnFamily(&cf1);
+  locker_->AddColumnFamily(&cf2);
 
   auto txn1 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn1, 1024, "k1", env_, true));
@@ -152,7 +153,7 @@ TEST_P(AnyLockManagerTest, LockStatus) {
   ASSERT_OK(locker_->TryLock(txn2, 1024, "k2", env_, false));
   ASSERT_OK(locker_->TryLock(txn2, 2048, "k2", env_, false));
 
-  auto s = locker_->GetLockStatusData();
+  auto s = locker_->GetPointLockStatus();
   ASSERT_EQ(s.size(), 4u);
   for (uint32_t cf_id : {1024, 2048}) {
     ASSERT_EQ(s.count(cf_id), 2u);
@@ -182,8 +183,9 @@ TEST_P(AnyLockManagerTest, LockStatus) {
   delete txn2;
 }
 
-TEST_P(AnyLockManagerTest, UnlockExclusive) {
-  locker_->AddColumnFamily(&cf_1);
+TEST_F(PointLockManagerTest, UnlockExclusive) {
+  MockColumnFamilyHandle cf(1);
+  locker_->AddColumnFamily(&cf);
 
   auto txn1 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn1, 1, "k", env_, true));
@@ -199,8 +201,9 @@ TEST_P(AnyLockManagerTest, UnlockExclusive) {
   delete txn2;
 }
 
-TEST_P(AnyLockManagerTest, UnlockShared) {
-  locker_->AddColumnFamily(&cf_1);
+TEST_F(PointLockManagerTest, UnlockShared) {
+  MockColumnFamilyHandle cf(1);
+  locker_->AddColumnFamily(&cf);
 
   auto txn1 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn1, 1, "k", env_, false));
@@ -218,7 +221,8 @@ TEST_P(AnyLockManagerTest, UnlockShared) {
 
 TEST_P(AnyLockManagerTest, ReentrantExclusiveLock) {
   // Tests that a txn can acquire exclusive lock on the same key repeatedly.
-  locker_->AddColumnFamily(&cf_1);
+  MockColumnFamilyHandle cf(1);
+  locker_->AddColumnFamily(&cf);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
@@ -231,7 +235,8 @@ TEST_P(AnyLockManagerTest, ReentrantExclusiveLock) {
 
 TEST_P(AnyLockManagerTest, ReentrantSharedLock) {
   // Tests that a txn can acquire shared lock on the same key repeatedly.
-  locker_->AddColumnFamily(&cf_1);
+  MockColumnFamilyHandle cf(1);
+  locker_->AddColumnFamily(&cf);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
@@ -244,7 +249,8 @@ TEST_P(AnyLockManagerTest, ReentrantSharedLock) {
 
 TEST_P(AnyLockManagerTest, LockUpgrade) {
   // Tests that a txn can upgrade from a shared lock to an exclusive lock.
-  locker_->AddColumnFamily(&cf_1);
+  MockColumnFamilyHandle cf(1);
+  locker_->AddColumnFamily(&cf);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
@@ -257,7 +263,8 @@ TEST_P(AnyLockManagerTest, LockUpgrade) {
 TEST_P(AnyLockManagerTest, LockDowngrade) {
   // Tests that a txn can acquire a shared lock after acquiring an exclusive
   // lock on the same key.
-  locker_->AddColumnFamily(&cf_1);
+  MockColumnFamilyHandle cf(1);
+  locker_->AddColumnFamily(&cf);
   auto txn = NewTxn();
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, true));
   ASSERT_OK(locker_->TryLock(txn, 1, "k", env_, false));
@@ -269,7 +276,8 @@ TEST_P(AnyLockManagerTest, LockDowngrade) {
 
 TEST_P(AnyLockManagerTest, LockConflict) {
   // Tests that lock conflicts lead to lock timeout.
-  locker_->AddColumnFamily(&cf_1);
+  MockColumnFamilyHandle cf(1);
+  locker_->AddColumnFamily(&cf);
   auto txn1 = NewTxn();
   auto txn2 = NewTxn();
 
@@ -307,7 +315,7 @@ port::Thread BlockUntilWaitingTxn(bool use_range_locking,
   std::atomic<bool> reached(false);
   const char* sync_point_name =
       use_range_locking ? "RangeTreeLockManager::TryRangeLock:WaitingTxn"
-                        : "TransactionLockMgr::AcquireWithTimeout:WaitingTxn";
+                        : "PointLockManager::AcquireWithTimeout:WaitingTxn";
   ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->SetCallBack(
       sync_point_name, [&](void* /*arg*/) { reached.store(true); });
   ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->EnableProcessing();
@@ -325,7 +333,8 @@ port::Thread BlockUntilWaitingTxn(bool use_range_locking,
 
 TEST_P(AnyLockManagerTest, SharedLocks) {
   // Tests that shared locks can be concurrently held by multiple transactions.
-  locker_->AddColumnFamily(&cf_1);
+  MockColumnFamilyHandle cf(1);
+  locker_->AddColumnFamily(&cf);
   auto txn1 = NewTxn();
   auto txn2 = NewTxn();
   ASSERT_OK(locker_->TryLock(txn1, 1, "k", env_, false));
@@ -344,7 +353,8 @@ TEST_P(AnyLockManagerTest, Deadlock) {
   // Deadlock scenario:
   // txn1 exclusively locks k1, and wants to lock k2;
   // txn2 exclusively locks k2, and wants to lock k1.
-  locker_->AddColumnFamily(&cf_1);
+  MockColumnFamilyHandle cf(1);
+  locker_->AddColumnFamily(&cf);
   TransactionOptions txn_opt;
   txn_opt.deadlock_detect = true;
   txn_opt.lock_timeout = 1000000;
@@ -394,10 +404,12 @@ TEST_P(AnyLockManagerTest, Deadlock) {
 // This test doesn't work with Range Lock Manager, because Range Lock Manager
 // doesn't support deadlock_detect_depth.
 
-TEST_F(TransactionLockMgrTest, DeadlockDepthExceeded) {
+
+TEST_F(PointLockManagerTest, DeadlockDepthExceeded) {
   // Tests that when detecting deadlock, if the detection depth is exceeded,
   // it's also viewed as deadlock.
-  locker_->AddColumnFamily(&cf_1);
+  MockColumnFamilyHandle cf(1);
+  locker_->AddColumnFamily(&cf);
   TransactionOptions txn_opt;
   txn_opt.deadlock_detect = true;
   txn_opt.deadlock_detect_depth = 1;
@@ -450,7 +462,8 @@ TEST_F(TransactionLockMgrTest, DeadlockDepthExceeded) {
 }
 
 #ifdef ENABLE_RANGE_LOCKING_TESTS
-INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest, ::testing::Bool());
+//INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest, ::testing::Bool());
+INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest, ::testing::Values(false));
 #else
 INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
                         ::testing::Values(false));

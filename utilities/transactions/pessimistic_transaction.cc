@@ -41,8 +41,7 @@ PessimisticTransaction::PessimisticTransaction(
     : TransactionBaseImpl(
           txn_db->GetRootDB(), write_options,
           static_cast_with_check<PessimisticTransactionDB>(txn_db)
-              ->getLockMgr()
-              ->getLockTrackerFactory()),
+              ->GetLockTrackerFactory()),
       txn_db_impl_(nullptr),
       expiration_time_(0),
       txn_id_(0),
@@ -136,7 +135,7 @@ WriteCommittedTxn::WriteCommittedTxn(TransactionDB* txn_db,
     : PessimisticTransaction(txn_db, write_options, txn_options){};
 
 Status PessimisticTransaction::CommitBatch(WriteBatch* batch) {
-  std::unique_ptr<LockTracker> keys_to_unlock(ltf_->Create());
+  std::unique_ptr<LockTracker> keys_to_unlock(lock_tracker_factory_.Create());
   Status s = LockBatch(batch, keys_to_unlock.get());
 
   if (!s.ok()) {

@@ -84,9 +84,15 @@ class PointLockTracker : public LockTracker {
 
 class PointLockTrackerFactory : public LockTrackerFactory {
  public:
-  LockTracker* Create() const override { return new PointLockTracker; }
+  static const PointLockTrackerFactory& Get() {
+    static const PointLockTrackerFactory instance;
+    return instance;
+  }
 
-  static PointLockTrackerFactory instance;
+  LockTracker* Create() const override { return new PointLockTracker(); }
+
+ private:
+  PointLockTrackerFactory() {}
 };
 
 }  // namespace ROCKSDB_NAMESPACE

@@ -44,6 +44,7 @@
 #include "db/memtable_list.h"
 #include "db/merge_context.h"
 #include "db/merge_helper.h"
+#include "db/periodic_work_scheduler.h"
 #include "db/range_tombstone_fragmenter.h"
 #include "db/table_cache.h"
 #include "db/table_properties_collector.h"
@@ -65,7 +66,6 @@
 #include "monitoring/iostats_context_imp.h"
 #include "monitoring/perf_context_imp.h"
 #include "monitoring/persistent_stats_history.h"
-#include "monitoring/stats_dump_scheduler.h"
 #include "monitoring/thread_status_updater.h"
 #include "monitoring/thread_status_util.h"
 #include "options/cf_options.h"
@@ -207,7 +207,7 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
       refitting_level_(false),
       opened_successfully_(false),
 #ifndef ROCKSDB_LITE
-      stats_dump_scheduler_(nullptr),
+      periodic_work_scheduler_(nullptr),
 #endif  // ROCKSDB_LITE
       two_write_queues_(options.two_write_queues),
       manual_wal_flush_(options.manual_wal_flush),
@@ -407,7 +407,7 @@ Status DBImpl::ResumeImpl(DBRecoverContext context) {
     // during previous error handling.
     if (file_deletion_disabled) {
       // Always return ok
-      EnableFileDeletions(/*force=*/true);
+      s = EnableFileDeletions(/*force=*/true);
     }
     ROCKS_LOG_INFO(immutable_db_options_.info_log, "Successfully resumed DB");
   }
@@ -446,8 +446,8 @@ void DBImpl::CancelAllBackgroundWork(bool wait) {
                  "Shutdown: canceling all background work");
 
 #ifndef ROCKSDB_LITE
-  if (stats_dump_scheduler_ != nullptr) {
-    stats_dump_scheduler_->Unregister(this);
+  if (periodic_work_scheduler_ != nullptr) {
+    periodic_work_scheduler_->Unregister(this);
   }
 #endif  // !ROCKSDB_LITE
 
@@ -459,7 +459,9 @@ void DBImpl::CancelAllBackgroundWork(bool wait) {
       autovector<ColumnFamilyData*> cfds;
       SelectColumnFamiliesForAtomicFlush(&cfds);
       mutex_.Unlock();
-      AtomicFlushMemTables(cfds, FlushOptions(), FlushReason::kShutDown);
+      Status s =
+          AtomicFlushMemTables(cfds, FlushOptions(), FlushReason::kShutDown);
+      s.PermitUncheckedError();  //**TODO: What to do on error?
       mutex_.Lock();
     } else {
       for (auto cfd : *versions_->GetColumnFamilySet()) {
@@ -685,18 +687,18 @@ void DBImpl::PrintStatistics() {
   }
 }
 
-void DBImpl::StartStatsDumpScheduler() {
+void DBImpl::StartPeriodicWorkScheduler() {
 #ifndef ROCKSDB_LITE
   {
     InstrumentedMutexLock l(&mutex_);
-    stats_dump_scheduler_ = StatsDumpScheduler::Default();
-    TEST_SYNC_POINT_CALLBACK("DBImpl::StartStatsDumpScheduler:Init",
-                             &stats_dump_scheduler_);
+    periodic_work_scheduler_ = PeriodicWorkScheduler::Default();
+    TEST_SYNC_POINT_CALLBACK("DBImpl::StartPeriodicWorkScheduler:Init",
+                             &periodic_work_scheduler_);
   }
 
-  stats_dump_scheduler_->Register(this,
-                                  mutable_db_options_.stats_dump_period_sec,
-                                  mutable_db_options_.stats_persist_period_sec);
+  periodic_work_scheduler_->Register(
+      this, mutable_db_options_.stats_dump_period_sec,
+      mutable_db_options_.stats_persist_period_sec);
 #endif  // !ROCKSDB_LITE
 }
 
@@ -745,29 +747,34 @@ void DBImpl::PersistStats() {
 
   if (immutable_db_options_.persist_stats_to_disk) {
     WriteBatch batch;
+    Status s = Status::OK();
     if (stats_slice_initialized_) {
       ROCKS_LOG_INFO(immutable_db_options_.info_log,
                      "Reading %" ROCKSDB_PRIszt " stats from statistics\n",
                      stats_slice_.size());
       for (const auto& stat : stats_map) {
-        char key[100];
-        int length =
-            EncodePersistentStatsKey(now_seconds, stat.first, 100, key);
-        // calculate the delta from last time
-        if (stats_slice_.find(stat.first) != stats_slice_.end()) {
-          uint64_t delta = stat.second - stats_slice_[stat.first];
-          batch.Put(persist_stats_cf_handle_, Slice(key, std::min(100, length)),
-                    ToString(delta));
+        if (s.ok()) {
+          char key[100];
+          int length =
+              EncodePersistentStatsKey(now_seconds, stat.first, 100, key);
+          // calculate the delta from last time
+          if (stats_slice_.find(stat.first) != stats_slice_.end()) {
+            uint64_t delta = stat.second - stats_slice_[stat.first];
+            s = batch.Put(persist_stats_cf_handle_,
+                          Slice(key, std::min(100, length)), ToString(delta));
+          }
         }
       }
     }
     stats_slice_initialized_ = true;
     std::swap(stats_slice_, stats_map);
-    WriteOptions wo;
-    wo.low_pri = true;
-    wo.no_slowdown = true;
-    wo.sync = false;
-    Status s = Write(wo, &batch);
+    if (s.ok()) {
+      WriteOptions wo;
+      wo.low_pri = true;
+      wo.no_slowdown = true;
+      wo.sync = false;
+      s = Write(wo, &batch);
+    }
     if (!s.ok()) {
       ROCKS_LOG_INFO(immutable_db_options_.info_log,
                      "Writing to persistent stats CF failed -- %s",
@@ -907,6 +914,14 @@ void DBImpl::DumpStats() {
   PrintStatistics();
 }
 
+void DBImpl::FlushInfoLog() {
+  if (shutdown_initiated_) {
+    return;
+  }
+  TEST_SYNC_POINT("DBImpl::FlushInfoLog:StartRunning");
+  LogFlush(immutable_db_options_.info_log);
+}
+
 Status DBImpl::TablesRangeTombstoneSummary(ColumnFamilyHandle* column_family,
                                            int max_entries_to_print,
                                            std::string* out_str) {
@@ -961,6 +976,7 @@ Status DBImpl::SetOptions(
   MutableCFOptions new_options;
   Status s;
   Status persist_options_status;
+  persist_options_status.PermitUncheckedError();  // Allow uninitialized access
   SuperVersionContext sv_context(/* create_superversion */ true);
   {
     auto db_options = GetDBOptions();
@@ -1082,19 +1098,12 @@ Status DBImpl::SetDBOptions(
               mutable_db_options_.stats_dump_period_sec ||
           new_options.stats_persist_period_sec !=
               mutable_db_options_.stats_persist_period_sec) {
-        if (stats_dump_scheduler_) {
-          mutex_.Unlock();
-          stats_dump_scheduler_->Unregister(this);
-          mutex_.Lock();
-        }
-        if (new_options.stats_dump_period_sec > 0 ||
-            new_options.stats_persist_period_sec > 0) {
-          mutex_.Unlock();
-          stats_dump_scheduler_->Register(this,
-                                          new_options.stats_dump_period_sec,
-                                          new_options.stats_persist_period_sec);
-          mutex_.Lock();
-        }
+        mutex_.Unlock();
+        periodic_work_scheduler_->Unregister(this);
+        periodic_work_scheduler_->Register(
+            this, new_options.stats_dump_period_sec,
+            new_options.stats_persist_period_sec);
+        mutex_.Lock();
       }
       write_controller_.set_max_delayed_write_rate(
           new_options.delayed_write_rate);
@@ -1600,7 +1609,8 @@ Status DBImpl::GetImpl(const ReadOptions& read_options, const Slice& key,
     // tracing is enabled.
     InstrumentedMutexLock lock(&trace_mutex_);
     if (tracer_) {
-      tracer_->Get(get_impl_options.column_family, key);
+      // TODO: maybe handle the tracing status?
+      tracer_->Get(get_impl_options.column_family, key).PermitUncheckedError();
     }
   }
 
@@ -2923,7 +2933,7 @@ const Snapshot* DBImpl::GetSnapshotForWriteConflictBoundary() {
 SnapshotImpl* DBImpl::GetSnapshotImpl(bool is_write_conflict_boundary,
                                       bool lock) {
   int64_t unix_time = 0;
-  env_->GetCurrentTime(&unix_time);  // Ignore error
+  env_->GetCurrentTime(&unix_time).PermitUncheckedError();  // Ignore error
   SnapshotImpl* s = new SnapshotImpl;
 
   if (lock) {
@@ -4546,7 +4556,9 @@ Status DBImpl::IngestExternalFiles(
       // be pessimistic and try write to a new MANIFEST.
       // TODO: distinguish between MANIFEST write and CURRENT renaming
       const IOStatus& io_s = versions_->io_status();
-      error_handler_.SetBGError(io_s, BackgroundErrorReason::kManifestWrite);
+      // Should handle return error?
+      error_handler_.SetBGError(io_s, BackgroundErrorReason::kManifestWrite)
+          .PermitUncheckedError();
     }
 
     // Resume writes to the DB
@@ -4701,8 +4713,14 @@ Status DBImpl::CreateColumnFamilyWithImport(
 
   import_job.Cleanup(status);
   if (!status.ok()) {
-    DropColumnFamily(*handle);
-    DestroyColumnFamilyHandle(*handle);
+    Status temp_s = DropColumnFamily(*handle);
+    if (!temp_s.ok()) {
+      ROCKS_LOG_ERROR(immutable_db_options_.info_log,
+                      "DropColumnFamily failed with error %s",
+                      temp_s.ToString().c_str());
+    }
+    // Always returns Status::OK()
+    assert(DestroyColumnFamilyHandle(*handle).ok());
     *handle = nullptr;
   }
   return status;

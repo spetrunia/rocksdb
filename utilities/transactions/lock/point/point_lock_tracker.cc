@@ -9,8 +9,6 @@
 
 namespace ROCKSDB_NAMESPACE {
 
-PointLockTrackerFactory PointLockTrackerFactory::instance;
-
 namespace {
 
 class TrackedKeysColumnFamilyIterator

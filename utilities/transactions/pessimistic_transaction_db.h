@@ -20,7 +20,7 @@
 #include "rocksdb/options.h"
 #include "rocksdb/utilities/transaction_db.h"
 #include "util/cast_util.h"
-#include "utilities/transactions/lock/lock_mgr.h"
+#include "utilities/transactions/lock/lock_manager.h"
 #include "utilities/transactions/lock/range/range_lock_manager.h"
 #include "utilities/transactions/pessimistic_transaction.h"
 #include "utilities/transactions/write_prepared_txn.h"
@@ -134,7 +134,7 @@ class PessimisticTransactionDB : public TransactionDB {
   // not thread safe. current use case is during recovery (single thread)
   void GetAllPreparedTransactions(std::vector<Transaction*>* trans) override;
 
-  BaseLockMgr::LockStatusData GetLockStatusData() override;
+  LockManager::PointLockStatus GetLockStatusData() override;
 
   std::vector<DeadlockPath> GetDeadlockInfoBuffer() override;
   void SetDeadlockInfoBufferSize(uint32_t target_size) override;
@@ -146,7 +146,10 @@ class PessimisticTransactionDB : public TransactionDB {
   virtual void UpdateCFComparatorMap(const std::vector<ColumnFamilyHandle*>&) {}
   virtual void UpdateCFComparatorMap(ColumnFamilyHandle*) {}
 
-  BaseLockMgr* getLockMgr() const { return lock_mgr_.get(); }
+  // Use the returned factory to create LockTrackers in transactions.
+  const LockTrackerFactory& GetLockTrackerFactory() const {
+    return lock_manager_->GetLockTrackerFactory();
+  }
 
  protected:
   DBImpl* db_impl_;
@@ -173,8 +176,7 @@ class PessimisticTransactionDB : public TransactionDB {
   friend class WriteUnpreparedTransactionTest_RecoveryTest_Test;
   friend class WriteUnpreparedTransactionTest_MarkLogWithPrepSection_Test;
 
-  // Lock manager being used.
-  std::shared_ptr<BaseLockMgr> lock_mgr_;
+  std::shared_ptr<LockManager> lock_manager_;
 
   // Non-null if we are using a lock manager that supports range locking.
   RangeLockManagerBase* range_lock_mgr_ = nullptr;

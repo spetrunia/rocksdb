@@ -15,8 +15,6 @@
 
 namespace ROCKSDB_NAMESPACE {
 
-using ColumnFamilyId = uint32_t;
-
 // Request for locking a single key.
 struct PointLockRequest {
   // The id of the key's column family.
@@ -198,11 +196,8 @@ class LockTracker {
       ColumnFamilyId /*column_family_id*/) const = 0;
 };
 
-// An interface to LockTracker factory. LockTracker objects should only be
-// created through this interface's Create() method.
-//
-// One can get the factory pointer e.g. from Lock Manager which overloads
-// BaseLockMgr::getLockTrackerFactory().
+// LockTracker should always be constructed through this factory.
+// Each LockManager owns a LockTrackerFactory.
 class LockTrackerFactory {
  public:
   // Caller owns the returned pointer.

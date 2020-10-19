@@ -10,8 +10,6 @@
 
 namespace ROCKSDB_NAMESPACE {
 
-RangeTreeLockTrackerFactory RangeTreeLockTrackerFactory::instance;
-
 RangeLockList *RangeTreeLockTracker::getOrCreateList() {
   RangeLockList *res;
   if ((res = getList())) return res;

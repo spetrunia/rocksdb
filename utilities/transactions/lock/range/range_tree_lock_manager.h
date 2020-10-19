@@ -5,7 +5,11 @@
 #ifndef ROCKSDB_LITE
 #ifndef OS_WIN
 
+// For DeadlockInfoBuffer:
+#include "utilities/transactions/lock/point/point_lock_manager.h"
+
 #include "utilities/transactions/lock/range/range_lock_manager.h"
+#include "util/thread_local.h"
 
 // Lock Tree library:
 #include <locktree/lock_request.h>
@@ -23,11 +27,7 @@ using namespace toku;
 class RangeTreeLockManager : public RangeLockManagerBase,
                              public RangeLockManagerHandle {
  public:
-  LockTrackerFactory* getLockTrackerFactory() override {
-    return &RangeTreeLockTrackerFactory::instance;
-  }
-  BaseLockMgr* getLockManager() override { return this; }
-  RangeLockManagerBase* getRangeLockManager() override { return this; }
+  LockManager* getLockManager() override { return this; }
 
   void AddColumnFamily(const ColumnFamilyHandle* cfh) override;
   void RemoveColumnFamily(const ColumnFamilyHandle* cfh) override;
@@ -39,16 +39,28 @@ class RangeTreeLockManager : public RangeLockManagerBase,
   // Get a lock on a range
   //  @note only exclusive locks are currently supported (requesting a
   //  non-exclusive lock will get an exclusive one)
-  Status TryRangeLock(PessimisticTransaction* txn, uint32_t column_family_id,
-                      const Endpoint& start_endp, const Endpoint& end_endp,
-                      bool exclusive) override;
+  using LockManager::TryLock;
+  Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
+                 const Endpoint& start_endp, const Endpoint& end_endp,
+                 Env *env, bool exclusive) override;
 
-  void UnLock(const PessimisticTransaction* txn, const LockTracker& tracker,
+  Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
+                 const std::string& key, Env* env, bool exclusive) override {
+    Endpoint endp(key.data(), key.size(), false);
+    return TryLock(txn, column_family_id, endp, endp, env, exclusive);
+  }
+
+  void UnLock(PessimisticTransaction* txn, const LockTracker& tracker,
               Env* env) override;
+  void UnLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
+              const std::string& key, Env* env) override;
+  void UnLock(PessimisticTransaction*, ColumnFamilyId, const Endpoint&,
+              const Endpoint&, Env*) {
+    // TODO: range unlock does nothing...
+  };
+
   // Release all locks the transaction is holding
   void UnLockAll(const PessimisticTransaction* txn, Env* env) override;
-  void UnLock(PessimisticTransaction* txn, uint32_t column_family_id,
-              const std::string& key, Env* env) override;
 
   RangeTreeLockManager(
       std::shared_ptr<TransactionDBMutexFactory> mutex_factory);
@@ -63,7 +75,27 @@ class RangeTreeLockManager : public RangeLockManagerBase,
 
   Counters GetStatus() override;
 
-  LockStatusData GetLockStatusData() override;
+  //LockStatusData GetLockStatusData() override;
+
+  bool IsPointLockSupported() const override {
+    // This doesn't mean that one could not have acquired point locks.
+    // this means we can't implement GetPointLockStatus().
+    return false;
+  }
+ 
+  
+  PointLockStatus GetPointLockStatus() override { 
+    // No point locks
+    return {}; 
+  }
+
+  RangeLockStatus GetRangeLockStatus() override;
+
+  bool IsRangeLockSupported() const override { return true; }
+
+  const LockTrackerFactory& GetLockTrackerFactory() const override {
+    return RangeTreeLockTrackerFactory::Get();
+  }
 
  private:
   toku::locktree_manager ltm_;

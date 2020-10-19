@@ -1046,7 +1046,7 @@ TEST_F(BlobDBTest, MigrateFromPlainRocksDB) {
     if (data.count(key) == 0) {
       ASSERT_TRUE(s.IsNotFound());
     } else if (is_blob[i]) {
-      ASSERT_TRUE(s.IsNotSupported());
+      ASSERT_TRUE(s.IsCorruption());
     } else {
       ASSERT_OK(s);
       ASSERT_EQ(data[key], value);
@@ -1469,12 +1469,14 @@ TEST_F(BlobDBTest, UserCompactionFilter_BlobIOError) {
     auto s = blob_db_->CompactRange(CompactRangeOptions(), nullptr, nullptr);
     ASSERT_TRUE(s.IsIOError());
 
+    // Reactivate file system to allow test to verify and close DB.
+    fault_injection_env_->SetFilesystemActive(true);
+    SyncPoint::GetInstance()->DisableProcessing();
+    SyncPoint::GetInstance()->ClearAllCallBacks();
+
     // Verify full data set after compaction failure
     VerifyDB(data);
 
-    // Reactivate file system to allow test to close DB.
-    fault_injection_env_->SetFilesystemActive(true);
-    SyncPoint::GetInstance()->ClearAllCallBacks();
     delete options.compaction_filter;
     Destroy();
   }

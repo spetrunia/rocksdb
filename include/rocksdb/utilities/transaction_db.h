@@ -31,7 +31,7 @@ enum TxnDBWritePolicy {
 
 const uint32_t kInitialMaxDeadlocks = 5;
 
-class BaseLockMgr;
+class LockManager;
 
 // A lock manager handle
 // The workflow is as follows:
@@ -45,7 +45,7 @@ class LockManagerHandle {
  public:
   // PessimisticTransactionDB will call this to get the Lock Manager it's going
   // to use.
-  virtual BaseLockMgr* getLockManager() = 0;
+  virtual LockManager* getLockManager() = 0;
 
   virtual ~LockManagerHandle(){};
 };
@@ -251,6 +251,13 @@ struct KeyLockInfo {
   bool has_key2 = false;  // TRUE <=> key2 has a value
 };
 
+struct RangeLockInfo {
+  Endpoint start;
+  Endpoint end;
+  std::vector<TransactionID> ids;
+  bool exclusive;
+};
+
 struct DeadlockInfo {
   TransactionID m_txn_id;
   uint32_t m_cf_id;
@@ -345,6 +352,7 @@ class TransactionDB : public StackableDB {
   // The mapping is column family id -> KeyLockInfo
   virtual std::unordered_multimap<uint32_t, KeyLockInfo>
   GetLockStatusData() = 0;
+
   virtual std::vector<DeadlockPath> GetDeadlockInfoBuffer() = 0;
   virtual void SetDeadlockInfoBufferSize(uint32_t target_size) = 0;
 

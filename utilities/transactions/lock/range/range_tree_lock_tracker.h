@@ -131,9 +131,15 @@ class RangeTreeLockTracker : public LockTracker {
 
 class RangeTreeLockTrackerFactory : public LockTrackerFactory {
  public:
-  LockTracker* Create() const override { return new RangeTreeLockTracker; }
+  static const RangeTreeLockTrackerFactory& Get() {
+    static const RangeTreeLockTrackerFactory instance;
+    return instance;
+  }
 
-  static RangeTreeLockTrackerFactory instance;
+  LockTracker* Create() const override { return new RangeTreeLockTracker(); }
+
+ private:
+  RangeTreeLockTrackerFactory() {}
 };
 
 }  // namespace ROCKSDB_NAMESPACE

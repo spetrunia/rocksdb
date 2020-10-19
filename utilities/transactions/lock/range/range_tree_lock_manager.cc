@@ -46,11 +46,12 @@ void serialize_endpoint(const Endpoint& endp, std::string* buf) {
 }
 
 // Get a range lock on [start_key; end_key] range
-Status RangeTreeLockManager::TryRangeLock(PessimisticTransaction* txn,
-                                          uint32_t column_family_id,
-                                          const Endpoint& start_endp,
-                                          const Endpoint& end_endp,
-                                          bool exclusive) {
+Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
+                                     uint32_t column_family_id,
+                                     const Endpoint& start_endp,
+                                     const Endpoint& end_endp,
+                                     Env*,
+                                     bool exclusive) {
   toku::lock_request request;
   request.create(mutex_factory_);
   DBT start_key_dbt, end_key_dbt;
@@ -177,7 +178,7 @@ static void range_lock_mgr_release_lock_int(toku::locktree* lt,
 }
 
 void RangeTreeLockManager::UnLock(PessimisticTransaction* txn,
-                                  uint32_t column_family_id,
+                                  ColumnFamilyId column_family_id,
                                   const std::string& key, Env*) {
   auto lt = get_locktree_by_cfid(column_family_id);
   range_lock_mgr_release_lock_int(lt, txn, column_family_id, key);
@@ -185,7 +186,7 @@ void RangeTreeLockManager::UnLock(PessimisticTransaction* txn,
       lt, nullptr /* lock_wait_needed_callback */);
 }
 
-void RangeTreeLockManager::UnLock(const PessimisticTransaction* /*txn*/,
+void RangeTreeLockManager::UnLock(PessimisticTransaction* /*txn*/,
                                   const LockTracker&, Env*) {
 // psergey-merge-todo:
 #if 0  
@@ -494,6 +495,7 @@ toku::locktree* RangeTreeLockManager::get_locktree_by_cfid(
   return nullptr;
 }
 
+#if 0
 struct LOCK_PRINT_CONTEXT {
   BaseLockMgr::LockStatusData* data;  // Save locks here
   uint32_t cfh_id;  // Column Family whose tree we are traversing
@@ -537,6 +539,11 @@ BaseLockMgr::LockStatusData RangeTreeLockManager::GetLockStatusData() {
     }
   }
   return data;
+}
+#endif
+
+LockManager::RangeLockStatus RangeTreeLockManager::GetRangeLockStatus() {
+  return {}; // TODO: get the above #if-0-ed code here.
 }
 
 }  // namespace ROCKSDB_NAMESPACE

@@ -10,9 +10,26 @@ aliases:
     only_for_branches: master
 
 commands:
+  install-pyenv-on-macos:
+    steps:
+      - run:
+          name: Install pyenv on macos
+          command: |
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install pyenv
+
+  increase-max-open-files-on-macos:
+    steps:
+      - run:
+          name: Increase max open files
+          command: |
+            sudo sysctl -w kern.maxfiles=1048576
+            sudo sysctl -w kern.maxfilesperproc=1048576
+            sudo launchctl limit maxfiles 1048576
+
   pre-steps:
     steps:
       - checkout
+      - run: pyenv install --skip-existing 3.5.9
       - run: pyenv global 3.5.9
       - run:
           name: Setup Environment Variables
@@ -46,14 +63,20 @@ commands:
           name: Install gflags
           command: |
             sudo apt-get update -y && sudo apt-get install -y libgflags-dev
+  
+  install-gflags-on-macos:
+    steps:
+      - run:
+          name: Install gflags on macos
+          command: |
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install gflags
 
   install-gtest-parallel:
     steps:
       - run:
           name: Install gtest-parallel
           command: |
-            echo "Currently using a forked version to print task status in circleCI output, pending: https://github.com/google/gtest-parallel/pull/79"
-            git clone --single-branch --branch master --depth 1 https://github.com/jay-zhuang/gtest-parallel.git ~/gtest-parallel
+            git clone --single-branch --branch master --depth 1 https://github.com/google/gtest-parallel.git ~/gtest-parallel
             echo "export PATH=$HOME/gtest-parallel:$PATH" >> $BASH_ENV
 
 executors:
@@ -64,6 +87,17 @@ executors:
       shell: bash.exe
 
 jobs:
+  build-macos:
+    macos:
+      xcode: 11.3.0
+    steps:
+      - increase-max-open-files-on-macos
+      - install-pyenv-on-macos
+      - pre-steps
+      - install-gflags-on-macos
+      - run: ulimit -S -n 1048576 && OPT=-DCIRCLECI make V=1 J=32 -j32 check | .circleci/cat_ignore_eagain
+      - post-steps
+
   build-linux:
     machine:
       image: ubuntu-1604:202007-01
@@ -277,7 +311,7 @@ jobs:
           name: "Test RocksDB"
           shell: powershell.exe
           command: |
-            build_tools\run_ci_db_test.ps1 -SuiteRun db_basic_test,db_test,db_test2,env_basic_test,env_test,db_merge_operand_test -Concurrency 16
+            build_tools\run_ci_db_test.ps1 -SuiteRun db_basic_test,db_test,db_test2,db_merge_operand_test,bloom_test,c_test,coding_test,crc32c_test,dynamic_bloom_test,env_basic_test,env_test,hash_test,random_test -Concurrency 16
 
   build-linux-java:
     machine:
@@ -337,7 +371,7 @@ jobs:
             sed -i 's/[[:space:]]*$//; s/ / \.\//g; s/.*/.\/&/' /tmp/test_list
             cat /tmp/test_list
             export TEST_TMPDIR=/tmp/rocksdb_test_tmp
-            /usr/bin/python ../gtest-parallel/gtest-parallel $(</tmp/test_list) --output_dir=/tmp --print_task_status_continuously
+            /usr/bin/python ../gtest-parallel/gtest-parallel $(</tmp/test_list) --output_dir=/tmp | cat  # pipe to cat to continuously output status on circleci UI. Otherwise, no status will be printed while the job is running.
       - post-steps
 
 workflows:
@@ -420,3 +454,6 @@ workflows:
   build-linux-gcc-4-8:
     jobs:
       - build-linux-gcc-4-8
+  build-macos:
+    jobs:
+      - build-macos
