@@ -43,12 +43,6 @@ class RangeTreeLockManager : public RangeLockManagerBase,
                  const Endpoint& start_endp, const Endpoint& end_endp, Env* env,
                  bool exclusive) override;
 
-  Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
-                 const std::string& key, Env* env, bool exclusive) override {
-    Endpoint endp(key.data(), key.size(), false);
-    return TryLock(txn, column_family_id, endp, endp, env, exclusive);
-  }
-
   void UnLock(PessimisticTransaction* txn, const LockTracker& tracker,
               Env* env) override;
   void UnLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
@@ -74,11 +68,10 @@ class RangeTreeLockManager : public RangeLockManagerBase,
 
   Counters GetStatus() override;
 
-  // LockStatusData GetLockStatusData() override;
-
   bool IsPointLockSupported() const override {
-    // This doesn't mean that one could not have acquired point locks.
-    // this means we can't implement GetPointLockStatus().
+    // One could have acquired a point lock (it is reduced to range lock)
+    // but This doesn't mean that one could not have acquired point locks.
+    // this means we can't implement GetPointLockStatus()
     return false;
   }
 

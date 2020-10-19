@@ -15,14 +15,16 @@ class RangeLockManagerBase : public LockManager {
  public:
   // Geting a point lock is reduced to getting a range lock on a single-point
   // range
-#if 0
+  using LockManager::TryLock;
   Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
-                 const std::string& key, Env*, bool exclusive) override {
+                 const std::string& key, Env* env, bool exclusive) override{
     Endpoint endp(key.data(), key.size(), false);
-    return TryLock(txn, column_family_id, endp, endp, exclusive);
+    return TryLock(txn, column_family_id, endp, endp, env, exclusive);
   }
-#endif
-  // Release all locks the transaction is holding
+
+  // Release all locks the transaction is holding.
+  // locktree has an optimized implementation for this, for the STO-mode.
+  // TODO: check if this API call is needed.
   virtual void UnLockAll(const PessimisticTransaction* txn, Env* env) = 0;
 };
 
