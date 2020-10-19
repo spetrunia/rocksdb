@@ -448,13 +448,12 @@ TEST_F(TransactionLockMgrTest, DeadlockDepthExceeded) {
   delete txn1;
 }
 
-INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
 #ifdef ENABLE_RANGE_LOCKING_TESTS
-                        ::testing::Bool()
+INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest, ::testing::Bool());
 #else
-                        ::testing::Values(false)
+INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
+                        ::testing::Values(false));
 #endif
-);
 
 }  // namespace ROCKSDB_NAMESPACE
 
