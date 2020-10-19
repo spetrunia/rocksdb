@@ -7,7 +7,6 @@
 #ifndef ROCKSDB_LITE
 
 #include "utilities/transactions/lock/lock_mgr.h"
-#include "utilities/transactions/lock/range/range_lock_tracker.h"
 
 // TODO: move this piece to a separate file:
 namespace ROCKSDB_NAMESPACE {
@@ -36,7 +35,6 @@ class RangeLockManagerBase : public BaseLockMgr {
   virtual void UnLockAll(const PessimisticTransaction* txn, Env* env) = 0;
 };
 
-
 }  // namespace ROCKSDB_NAMESPACE
 
 #ifndef OS_WIN
@@ -44,6 +42,8 @@ class RangeLockManagerBase : public BaseLockMgr {
 // Lock Tree library:
 #include <locktree/lock_request.h>
 #include <locktree/locktree.h>
+
+#include "utilities/transactions/lock/range/range_lock_tracker.h"
 
 namespace ROCKSDB_NAMESPACE {
 

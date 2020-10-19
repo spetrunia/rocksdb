@@ -450,9 +450,9 @@ TEST_F(TransactionLockMgrTest, DeadlockDepthExceeded) {
 
 INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
 #ifdef ENABLE_RANGE_LOCKING_TESTS
-::testing::Bool()
+                        ::testing::Bool()
 #else
-::testing::Values(false)
+                        ::testing::Values(false)
 #endif
 );
 
