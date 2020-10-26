@@ -31,26 +31,10 @@ PessimisticTransactionDB::PessimisticTransactionDB(
     DB* db, const TransactionDBOptions& txn_db_options)
     : TransactionDB(db),
       db_impl_(static_cast_with_check<DBImpl>(db)),
-      txn_db_options_(txn_db_options) {
-  init_lock_manager();
+      txn_db_options_(txn_db_options),
+      lock_manager_(NewLockManager(this, txn_db_options)) {
   assert(db_impl_ != nullptr);
   info_log_ = db_impl_->GetDBOptions().info_log;
-}
-
-void PessimisticTransactionDB::init_lock_manager() {
-  if (txn_db_options_.lock_mgr_handle) {
-    // A custom lock manager was provided in options
-    auto mgr = txn_db_options_.lock_mgr_handle->getLockManager();
-    lock_manager_ =
-        std::shared_ptr<LockManager>(txn_db_options_.lock_mgr_handle, mgr);
-    if (mgr->IsRangeLockSupported())
-      range_lock_mgr_ = static_cast_with_check<RangeLockManagerBase>(mgr);
-  } else {
-    // Use point lock manager by default
-    lock_manager_ = std::shared_ptr<LockManager>(
-        new PointLockManager(this, txn_db_options_));
-    range_lock_mgr_ = nullptr;
-  }
 }
 
 // Support initiliazing PessimisticTransactionDB from a stackable db
@@ -73,8 +57,8 @@ PessimisticTransactionDB::PessimisticTransactionDB(
     StackableDB* db, const TransactionDBOptions& txn_db_options)
     : TransactionDB(db),
       db_impl_(static_cast_with_check<DBImpl>(db->GetRootDB())),
-      txn_db_options_(txn_db_options) {
-  init_lock_manager();
+      txn_db_options_(txn_db_options),
+      lock_manager_(NewLockManager(this, txn_db_options)) {
   assert(db_impl_ != nullptr);
 }
 

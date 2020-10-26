@@ -74,7 +74,7 @@ class LockManager {
 // LockManager should always be constructed through this factory method,
 // instead of constructing through concrete implementations' constructor.
 // Caller owns the returned pointer.
-LockManager* NewLockManager(PessimisticTransactionDB* db,
+std::shared_ptr<LockManager> NewLockManager(PessimisticTransactionDB* db,
                             const TransactionDBOptions& opt);
 
 }  // namespace ROCKSDB_NAMESPACE

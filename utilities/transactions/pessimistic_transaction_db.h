@@ -177,10 +177,6 @@ class PessimisticTransactionDB : public TransactionDB {
 
   std::shared_ptr<LockManager> lock_manager_;
 
-  // Non-null if we are using a lock manager that supports range locking.
-  RangeLockManagerBase* range_lock_mgr_ = nullptr;
-
-  void init_lock_manager();
 
   // Must be held when adding/dropping column families.
   InstrumentedMutex column_family_mutex_;
