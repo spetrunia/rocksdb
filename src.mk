@@ -255,18 +255,18 @@ LIB_SOURCES =                                                   \
   utilities/transactions/lock/lock_manager.cc                   \
   utilities/transactions/lock/point/point_lock_tracker.cc       \
   utilities/transactions/lock/point/point_lock_manager.cc       \
-  utilities/transactions/lock/range/range_tree_lock_manager.cc  \
-  utilities/transactions/lock/range/range_tree_lock_tracker.cc  \
-  utilities/transactions/lock/range/range_tree/locktree/keyrange.cc     \
-  utilities/transactions/lock/range/range_tree/locktree/range_buffer.cc \
-  utilities/transactions/lock/range/range_tree/locktree/wfg.cc          \
-  utilities/transactions/lock/range/range_tree/locktree/lock_request.cc \
-  utilities/transactions/lock/range/range_tree/locktree/locktree.cc     \
-  utilities/transactions/lock/range/range_tree/locktree/manager.cc      \
-  utilities/transactions/lock/range/range_tree/locktree/txnid_set.cc    \
-  utilities/transactions/lock/range/range_tree/util/dbt.cc              \
-  utilities/transactions/lock/range/range_tree/util/memarena.cc         \
-  utilities/transactions/lock/range/range_tree/standalone_port.cc       \
+  utilities/transactions/lock/range/range_tree/lib/locktree/keyrange.cc     \
+  utilities/transactions/lock/range/range_tree/lib/locktree/range_buffer.cc \
+  utilities/transactions/lock/range/range_tree/lib/locktree/wfg.cc          \
+  utilities/transactions/lock/range/range_tree/lib/locktree/lock_request.cc \
+  utilities/transactions/lock/range/range_tree/lib/locktree/locktree.cc     \
+  utilities/transactions/lock/range/range_tree/lib/locktree/manager.cc      \
+  utilities/transactions/lock/range/range_tree/lib/locktree/txnid_set.cc    \
+  utilities/transactions/lock/range/range_tree/lib/util/dbt.cc              \
+  utilities/transactions/lock/range/range_tree/lib/util/memarena.cc         \
+  utilities/transactions/lock/range/range_tree/lib/standalone_port.cc       \
+  utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc   \
+  utilities/transactions/lock/range/range_tree/range_tree_lock_tracker.cc   \
   utilities/transactions/optimistic_transaction.cc              \
   utilities/transactions/optimistic_transaction_db_impl.cc      \
   utilities/transactions/pessimistic_transaction.cc             \

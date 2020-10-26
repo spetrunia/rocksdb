@@ -817,8 +817,8 @@ set(SOURCES
         utilities/transactions/lock/lock_manager.cc
         utilities/transactions/lock/point/point_lock_tracker.cc
         utilities/transactions/lock/point/point_lock_manager.cc
-        utilities/transactions/lock/range/range_tree_lock_manager.cc
-        utilities/transactions/lock/range/range_tree_lock_tracker.cc
+        utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc
+        utilities/transactions/lock/range/range_tree/range_tree_lock_tracker.cc
         utilities/transactions/optimistic_transaction_db_impl.cc
         utilities/transactions/optimistic_transaction.cc
         utilities/transactions/pessimistic_transaction.cc
@@ -836,31 +836,31 @@ set(SOURCES
         utilities/write_batch_with_index/write_batch_with_index_internal.cc
         $<TARGET_OBJECTS:build_version>)
 
-# The following list is intentionally missing these files that are #include'd
-# into others:
-#   lock/range/range_tree/locktree/concurrent_tree.cc
-#   lock/range/range_tree/locktree/treenode.cc
-#   util/omt.cc
+# The following list is intentionally missing these files, because they are
+# #include'd into others:
+#   utilities/transactions/lock/range/range_tree/lib/locktree/concurrent_tree.cc
+#   utilities/transactions/lock/range/range_tree/lib/locktree/treenode.cc
+#   utilities/transactions/lock/range/range_tree/lib/util/omt.cc
 
 list(APPEND SOURCES
-  utilities/transactions/lock/range/range_tree/locktree/keyrange.cc
-  utilities/transactions/lock/range/range_tree/locktree/keyrange.h
-  utilities/transactions/lock/range/range_tree/locktree/txnid_set.h
-  utilities/transactions/lock/range/range_tree/locktree/range_buffer.cc
-  utilities/transactions/lock/range/range_tree/locktree/locktree.h
-  utilities/transactions/lock/range/range_tree/locktree/treenode.h
-  utilities/transactions/lock/range/range_tree/locktree/wfg.cc
-  utilities/transactions/lock/range/range_tree/locktree/lock_request.cc
-  utilities/transactions/lock/range/range_tree/locktree/locktree.cc
-  utilities/transactions/lock/range/range_tree/locktree/range_buffer.h
-  utilities/transactions/lock/range/range_tree/locktree/manager.cc
-  utilities/transactions/lock/range/range_tree/locktree/wfg.h
-  utilities/transactions/lock/range/range_tree/locktree/txnid_set.cc
-  utilities/transactions/lock/range/range_tree/locktree/lock_request.h
-  utilities/transactions/lock/range/range_tree/locktree/concurrent_tree.h
-  utilities/transactions/lock/range/range_tree/util/dbt.cc
-  utilities/transactions/lock/range/range_tree/util/memarena.cc
-  utilities/transactions/lock/range/range_tree/standalone_port.cc)
+  utilities/transactions/lock/range/range_tree/lib/locktree/keyrange.cc
+  utilities/transactions/lock/range/range_tree/lib/locktree/keyrange.h
+  utilities/transactions/lock/range/range_tree/lib/locktree/txnid_set.h
+  utilities/transactions/lock/range/range_tree/lib/locktree/range_buffer.cc
+  utilities/transactions/lock/range/range_tree/lib/locktree/locktree.h
+  utilities/transactions/lock/range/range_tree/lib/locktree/treenode.h
+  utilities/transactions/lock/range/range_tree/lib/locktree/wfg.cc
+  utilities/transactions/lock/range/range_tree/lib/locktree/lock_request.cc
+  utilities/transactions/lock/range/range_tree/lib/locktree/locktree.cc
+  utilities/transactions/lock/range/range_tree/lib/locktree/range_buffer.h
+  utilities/transactions/lock/range/range_tree/lib/locktree/manager.cc
+  utilities/transactions/lock/range/range_tree/lib/locktree/wfg.h
+  utilities/transactions/lock/range/range_tree/lib/locktree/txnid_set.cc
+  utilities/transactions/lock/range/range_tree/lib/locktree/lock_request.h
+  utilities/transactions/lock/range/range_tree/lib/locktree/concurrent_tree.h
+  utilities/transactions/lock/range/range_tree/lib/util/dbt.cc
+  utilities/transactions/lock/range/range_tree/lib/util/memarena.cc
+  utilities/transactions/lock/range/range_tree/lib/standalone_port.cc)
 
 if(HAVE_SSE42 AND NOT MSVC)
   set_source_files_properties(

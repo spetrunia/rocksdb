@@ -1,7 +1,7 @@
 #ifndef ROCKSDB_LITE
 #ifndef OS_WIN
 
-#include "utilities/transactions/lock/range/range_tree_lock_manager.h"
+#include "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.h"
 
 #include <algorithm>
 #include <cinttypes>
@@ -14,7 +14,7 @@
 #include "util/cast_util.h"
 #include "util/hash.h"
 #include "util/thread_local.h"
-#include "utilities/transactions/lock/range/range_tree_lock_tracker.h"
+#include "utilities/transactions/lock/range/range_tree/range_tree_lock_tracker.h"
 #include "utilities/transactions/pessimistic_transaction_db.h"
 #include "utilities/transactions/transaction_db_mutex_impl.h"
 
