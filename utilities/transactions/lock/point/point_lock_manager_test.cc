@@ -460,10 +460,8 @@ TEST_F(PointLockManagerTest, DeadlockDepthExceeded) {
 }
 
 #ifdef ENABLE_RANGE_LOCKING_TESTS
-// INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
-// ::testing::Bool());
 INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
-                        ::testing::Values(false));
+                        ::testing::Bool());
 #else
 INSTANTIATE_TEST_CASE_P(AnyLockManager, AnyLockManagerTest,
                         ::testing::Values(false));

@@ -10,6 +10,9 @@ namespace ROCKSDB_NAMESPACE {
 
 /*
   A base class for all Range-based lock managers
+
+  See also class RangeLockManagerHandle in
+  include/rocksdb/utilities/transaction_db.h
 */
 class RangeLockManagerBase : public LockManager {
  public:
