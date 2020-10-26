@@ -94,7 +94,7 @@ void PessimisticTransaction::Initialize(const TransactionOptions& txn_options) {
 }
 
 PessimisticTransaction::~PessimisticTransaction() {
-  txn_db_impl_->UnLock(this, *tracked_locks_, /*all_keys_hint=*/true);
+  txn_db_impl_->UnLock(this, *tracked_locks_);
   if (expiration_time_ > 0) {
     txn_db_impl_->RemoveExpirableTransaction(txn_id_);
   }
@@ -104,7 +104,7 @@ PessimisticTransaction::~PessimisticTransaction() {
 }
 
 void PessimisticTransaction::Clear() {
-  txn_db_impl_->UnLock(this, *tracked_locks_, /*all_keys_hint=*/true);
+  txn_db_impl_->UnLock(this, *tracked_locks_);
   TransactionBaseImpl::Clear();
 }
 
@@ -167,7 +167,7 @@ Status PessimisticTransaction::CommitBatch(WriteBatch* batch) {
     s = Status::InvalidArgument("Transaction is not in state for commit.");
   }
 
-  txn_db_impl_->UnLock(this, *keys_to_unlock, /*all_keys_hint=*/true);
+  txn_db_impl_->UnLock(this, *keys_to_unlock);
 
   return s;
 }

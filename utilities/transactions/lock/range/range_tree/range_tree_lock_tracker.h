@@ -28,7 +28,7 @@ class RangeLockList;
 
   Note: the list of locks may differ slighly from the contents of the lock
   tree, due to concurrency between lock acquisition, lock release, and lock
-  escalation. See MDEV-18227 and RangeTreeLockManager::UnLockAll for details.
+  escalation. See MDEV-18227 and RangeTreeLockManager::UnLock for details.
   This property is currently harmless.
 */
 class RangeLockList /*: public PessimisticTransaction::Lock--Storage */ {
@@ -63,7 +63,7 @@ class RangeLockList /*: public PessimisticTransaction::Lock--Storage */ {
 
   std::unordered_map<uint32_t, std::shared_ptr<toku::range_buffer>> buffers_;
 
-  // Synchronization. See RangeTreeLockManager::UnLockAll for details
+  // Synchronization. See RangeTreeLockManager::UnLock for details
   port::Mutex mutex_;
   bool releasing_locks_;
 };

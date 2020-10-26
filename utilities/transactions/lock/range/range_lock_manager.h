@@ -21,11 +21,6 @@ class RangeLockManagerBase : public LockManager {
     Endpoint endp(key.data(), key.size(), false);
     return TryLock(txn, column_family_id, endp, endp, env, exclusive);
   }
-
-  // Release all locks the transaction is holding.
-  // locktree has an optimized implementation for this, for the STO-mode.
-  // TODO: check if this API call is needed.
-  virtual void UnLockAll(const PessimisticTransaction* txn, Env* env) = 0;
 };
 
 }  // namespace ROCKSDB_NAMESPACE

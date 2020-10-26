@@ -52,9 +52,6 @@ class RangeTreeLockManager : public RangeLockManagerBase,
       // TODO: range unlock does nothing...
   };
 
-  // Release all locks the transaction is holding
-  void UnLockAll(const PessimisticTransaction* txn, Env* env) override;
-
   RangeTreeLockManager(
       std::shared_ptr<TransactionDBMutexFactory> mutex_factory);
 

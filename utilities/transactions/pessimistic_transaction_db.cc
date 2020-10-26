@@ -417,12 +417,7 @@ Status PessimisticTransactionDB::TryRangeLock(PessimisticTransaction* txn,
 }
 
 void PessimisticTransactionDB::UnLock(PessimisticTransaction* txn,
-                                      const LockTracker& keys,
-                                      bool all_keys_hint) {
-  if (all_keys_hint && range_lock_mgr_) {
-    range_lock_mgr_->UnLockAll(txn, GetEnv());
-    return;
-  }
+                                      const LockTracker& keys) {
   lock_manager_->UnLock(txn, keys, GetEnv());
 }
 

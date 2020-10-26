@@ -185,31 +185,20 @@ void RangeTreeLockManager::UnLock(PessimisticTransaction* txn,
       lt, nullptr /* lock_wait_needed_callback */);
 }
 
-void RangeTreeLockManager::UnLock(PessimisticTransaction* /*txn*/,
-                                  const LockTracker&, Env*) {
-// psergey-merge-todo:
-#if 0  
-  //TODO: if we collect all locks in a range buffer and then
-  // make one call to lock_tree::release_locks(), will that be faster?
-  for (auto& key_map_iter : *key_map) {
-    uint32_t column_family_id = key_map_iter.first;
-    auto& keys = key_map_iter.second;
-    auto lt= get_locktree_by_cfid(column_family_id);
+void RangeTreeLockManager::UnLock(PessimisticTransaction* txn,
+                                  const LockTracker& tracker, Env*) {
 
-    for (auto& key_iter : keys) {
-      const std::string& key = key_iter.first;
-      range_lock_mgr_release_lock_int(lt, txn, column_family_id, key);
-    }
-    toku::lock_request::retry_all_lock_requests(lt, nullptr /* lock_wait_needed_callback */);
-  }
-#endif
-}
+  const RangeTreeLockTracker *range_tracker =
+      static_cast<const RangeTreeLockTracker*>(&tracker);
 
-void RangeTreeLockManager::UnLockAll(const PessimisticTransaction* txn, Env*) {
+  RangeTreeLockTracker *range_trx_tracker =
+      static_cast<RangeTreeLockTracker*>(txn->tracked_locks_.get());
+
+  bool all_keys = (range_trx_tracker == range_tracker);
+
   // tracked_locks_->range_list may hold nullptr if the transaction has never
   // acquired any locks.
-  RangeLockList* range_list =
-      ((RangeTreeLockTracker*)txn->tracked_locks_.get())->getList();
+  RangeLockList* range_list = ((RangeTreeLockTracker*)range_tracker)->getList();
 
   if (range_list) {
     {
@@ -249,7 +238,7 @@ void RangeTreeLockManager::UnLockAll(const PessimisticTransaction* txn, Env*) {
     for (auto it : range_list->buffers_) {
       if (it.second->get_num_ranges()) {
         toku::locktree* lt = get_locktree_by_cfid(it.first);
-        lt->release_locks((TXNID)txn, it.second.get(), true);
+        lt->release_locks((TXNID)txn, it.second.get(), all_keys);
 
         it.second->destroy();
         it.second->create();
@@ -257,7 +246,7 @@ void RangeTreeLockManager::UnLockAll(const PessimisticTransaction* txn, Env*) {
         toku::lock_request::retry_all_lock_requests(lt, nullptr);
       }
     }
-    range_list->clear();
+    range_list->clear(); // TODO: need this?
     range_list->releasing_locks_ = false;
   }
 }
