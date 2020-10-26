@@ -187,11 +187,10 @@ void RangeTreeLockManager::UnLock(PessimisticTransaction* txn,
 
 void RangeTreeLockManager::UnLock(PessimisticTransaction* txn,
                                   const LockTracker& tracker, Env*) {
-
-  const RangeTreeLockTracker *range_tracker =
+  const RangeTreeLockTracker* range_tracker =
       static_cast<const RangeTreeLockTracker*>(&tracker);
 
-  RangeTreeLockTracker *range_trx_tracker =
+  RangeTreeLockTracker* range_trx_tracker =
       static_cast<RangeTreeLockTracker*>(txn->tracked_locks_.get());
 
   bool all_keys = (range_trx_tracker == range_tracker);
@@ -246,7 +245,7 @@ void RangeTreeLockManager::UnLock(PessimisticTransaction* txn,
         toku::lock_request::retry_all_lock_requests(lt, nullptr);
       }
     }
-    range_list->clear(); // TODO: need this?
+    range_list->clear();  // TODO: need this?
     range_list->releasing_locks_ = false;
   }
 }

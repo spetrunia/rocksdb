@@ -75,7 +75,7 @@ class LockManager {
 // instead of constructing through concrete implementations' constructor.
 // Caller owns the returned pointer.
 std::shared_ptr<LockManager> NewLockManager(PessimisticTransactionDB* db,
-                            const TransactionDBOptions& opt);
+                                            const TransactionDBOptions& opt);
 
 }  // namespace ROCKSDB_NAMESPACE
 

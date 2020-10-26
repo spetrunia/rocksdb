@@ -12,7 +12,7 @@
 namespace ROCKSDB_NAMESPACE {
 
 std::shared_ptr<LockManager> NewLockManager(PessimisticTransactionDB* db,
-                            const TransactionDBOptions& opt) {
+                                            const TransactionDBOptions& opt) {
   assert(db);
   if (opt.lock_mgr_handle) {
     // A custom lock manager was provided in options

@@ -177,7 +177,6 @@ class PessimisticTransactionDB : public TransactionDB {
 
   std::shared_ptr<LockManager> lock_manager_;
 
-
   // Must be held when adding/dropping column families.
   InstrumentedMutex column_family_mutex_;
   Transaction* BeginInternalTransaction(const WriteOptions& options);
