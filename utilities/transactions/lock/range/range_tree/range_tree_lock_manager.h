@@ -57,11 +57,11 @@ class RangeTreeLockManager : public RangeLockManagerBase,
 
   ~RangeTreeLockManager();
 
-  int set_max_lock_memory(size_t max_lock_memory) override {
+  int SetMaxLockMemory(size_t max_lock_memory) override {
     return ltm_.set_max_lock_memory(max_lock_memory);
   }
 
-  size_t get_max_lock_memory() { return ltm_.get_max_lock_memory(); }
+  size_t GetMaxLockMemory() override { return ltm_.get_max_lock_memory(); }
 
   Counters GetStatus() override;
 
@@ -77,7 +77,14 @@ class RangeTreeLockManager : public RangeLockManagerBase,
     return {};
   }
 
-  RangeLockStatus GetRangeLockStatus() override;
+  // This is from LockManager
+  LockManager::RangeLockStatus GetRangeLockStatus() override;
+
+  // This has the same meaning as GetRangeLockStatus but is from
+  // RangeLockManagerHandle
+  RangeLockManagerHandle::RangeLockStatus GetRangeLockStatusData() override {
+    return GetRangeLockStatus();
+  }
 
   bool IsRangeLockSupported() const override { return true; }
 

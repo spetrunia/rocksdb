@@ -196,7 +196,31 @@ TEST_F(RangeLockingTest, SnapshotValidation) {
   delete txn2;
 }
 
+TEST_F(RangeLockingTest, MultipleTrxLockStatusData) {
+  WriteOptions write_options;
+  TransactionOptions txn_options;
+  auto cf = db->DefaultColumnFamily();
+  Status s;
+
+  Transaction* txn0 = db->BeginTransaction(write_options, txn_options);
+  Transaction* txn1 = db->BeginTransaction(write_options, txn_options);
+
+  // Get a range lock
+  s = txn0->GetRangeLock(cf, Endpoint("z"), Endpoint("z"));
+  ASSERT_EQ(s, Status::OK());
+
+  s = txn1->GetRangeLock(cf, Endpoint("b"), Endpoint("e"));
+  ASSERT_EQ(s, Status::OK());
+
+  auto s2 = range_lock_mgr->GetRangeLockStatusData();
+
+  ASSERT_EQ(s2.size(), 2);
+  delete txn0;
+  delete txn1;
+}
+
 }  // namespace ROCKSDB_NAMESPACE
+
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);

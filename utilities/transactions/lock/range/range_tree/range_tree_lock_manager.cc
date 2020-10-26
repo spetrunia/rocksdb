@@ -45,6 +45,15 @@ void serialize_endpoint(const Endpoint& endp, std::string* buf) {
   buf->append(endp.slice.data(), endp.slice.size());
 }
 
+void deserialize_endpoint(const DBT *dbt, EndpointWithString *endp) {
+  assert(dbt->size >= 1);
+  const char *dbt_data= (const char*)dbt->data;
+  char suffix= dbt_data[0];
+  assert(suffix == SUFFIX_INFIMUM || suffix == SUFFIX_SUPREMUM);
+  endp->inf_suffix= (suffix == SUFFIX_SUPREMUM);
+  endp->slice.assign(dbt_data + 1, dbt->size - 1);
+}
+
 // Get a range lock on [start_key; end_key] range
 Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
                                      uint32_t column_family_id,
@@ -482,16 +491,13 @@ toku::locktree* RangeTreeLockManager::get_locktree_by_cfid(
   return nullptr;
 }
 
-#if 0
 struct LOCK_PRINT_CONTEXT {
-  BaseLockMgr::LockStatusData* data;  // Save locks here
+  RangeLockManagerHandle::RangeLockStatus* data;  // Save locks here
   uint32_t cfh_id;  // Column Family whose tree we are traversing
 };
 
-static void push_into_lock_status_data(void* param, const DBT* left,
-                                       const DBT* right, TXNID txnid_arg,
-                                       bool is_shared, TxnidVector* owners) {
-  struct LOCK_PRINT_CONTEXT* ctx = (LOCK_PRINT_CONTEXT*)param;
+/*
+For reporting point locks:
   struct KeyLockInfo info;
 
   info.key.append((const char*)left->data, (size_t)left->size);
@@ -503,6 +509,19 @@ static void push_into_lock_status_data(void* param, const DBT* left,
     info.has_key2 = true;
     info.key2.append((const char*)right->data, right->size);
   }
+*/
+
+
+static void push_into_lock_status_data(void* param, const DBT* left,
+                                       const DBT* right, TXNID txnid_arg,
+                                       bool is_shared, TxnidVector* owners) {
+  struct LOCK_PRINT_CONTEXT* ctx = (LOCK_PRINT_CONTEXT*)param;
+  struct RangeLockInfo info;
+
+  info.exclusive = !is_shared;
+
+  deserialize_endpoint(left, &info.start);
+  deserialize_endpoint(right, &info.end);
 
   if (txnid_arg != TXNID_SHARED) {
     TXNID txnid = ((PessimisticTransaction*)txnid_arg)->GetID();
@@ -516,8 +535,8 @@ static void push_into_lock_status_data(void* param, const DBT* left,
   ctx->data->insert({ctx->cfh_id, info});
 }
 
-BaseLockMgr::LockStatusData RangeTreeLockManager::GetLockStatusData() {
-  LockStatusData data;
+LockManager::RangeLockStatus RangeTreeLockManager::GetRangeLockStatus() {
+  LockManager::RangeLockStatus data;
   {
     InstrumentedMutexLock l(&ltree_map_mutex_);
     for (auto it : ltree_map_) {
@@ -527,11 +546,7 @@ BaseLockMgr::LockStatusData RangeTreeLockManager::GetLockStatusData() {
   }
   return data;
 }
-#endif
 
-LockManager::RangeLockStatus RangeTreeLockManager::GetRangeLockStatus() {
-  return {};  // TODO: get the above #if-0-ed code here.
-}
 
 }  // namespace ROCKSDB_NAMESPACE
 #endif  // OS_WIN

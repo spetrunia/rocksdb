@@ -32,6 +32,7 @@ enum TxnDBWritePolicy {
 const uint32_t kInitialMaxDeadlocks = 5;
 
 class LockManager;
+struct RangeLockInfo;
 
 // A lock manager handle
 // The workflow is as follows:
@@ -47,21 +48,33 @@ class LockManagerHandle {
   // to use.
   virtual LockManager* getLockManager() = 0;
 
-  virtual ~LockManagerHandle(){};
+  virtual ~LockManagerHandle(){}
 };
 
 // A handle to control RangeLockManager (Range-based lock manager) from outside
 // RocksDB
 class RangeLockManagerHandle : public LockManagerHandle {
  public:
-  virtual int set_max_lock_memory(size_t max_lock_memory) = 0;
+  // Total amount of lock memory to use (per column family)
+  virtual int SetMaxLockMemory(size_t max_lock_memory) = 0;
+  virtual size_t GetMaxLockMemory() = 0;
+
+  using RangeLockStatus =
+      std::unordered_multimap<ColumnFamilyId, RangeLockInfo>;
+
+  virtual RangeLockStatus GetRangeLockStatusData() = 0;
 
   class Counters {
    public:
+    // Number of times lock escalation was triggered (for all column families)
     uint64_t escalation_count;
+
+    // How much memory is currently used for locks (total for all column
+    // families)
     uint64_t current_lock_memory;
   };
 
+  // Get the current counter values
   virtual Counters GetStatus() = 0;
   virtual ~RangeLockManagerHandle(){};
 };
@@ -245,15 +258,19 @@ struct TransactionDBWriteOptimizations {
 
 struct KeyLockInfo {
   std::string key;
-  std::string key2;  // Used when range locking is used
   std::vector<TransactionID> ids;
   bool exclusive;
-  bool has_key2 = false;  // TRUE <=> key2 has a value
+};
+
+// Same as class Endpoint, but use std::string to manage the buffer allocation
+struct EndpointWithString {
+  std::string slice;
+  bool inf_suffix;
 };
 
 struct RangeLockInfo {
-  Endpoint start;
-  Endpoint end;
+  EndpointWithString start;
+  EndpointWithString end;
   std::vector<TransactionID> ids;
   bool exclusive;
 };
