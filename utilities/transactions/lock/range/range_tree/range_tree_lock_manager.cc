@@ -45,12 +45,12 @@ void serialize_endpoint(const Endpoint& endp, std::string* buf) {
   buf->append(endp.slice.data(), endp.slice.size());
 }
 
-void deserialize_endpoint(const DBT *dbt, EndpointWithString *endp) {
+void deserialize_endpoint(const DBT* dbt, EndpointWithString* endp) {
   assert(dbt->size >= 1);
-  const char *dbt_data= (const char*)dbt->data;
-  char suffix= dbt_data[0];
+  const char* dbt_data = (const char*)dbt->data;
+  char suffix = dbt_data[0];
   assert(suffix == SUFFIX_INFIMUM || suffix == SUFFIX_SUPREMUM);
-  endp->inf_suffix= (suffix == SUFFIX_SUPREMUM);
+  endp->inf_suffix = (suffix == SUFFIX_SUPREMUM);
   endp->slice.assign(dbt_data + 1, dbt->size - 1);
 }
 
@@ -511,7 +511,6 @@ For reporting point locks:
   }
 */
 
-
 static void push_into_lock_status_data(void* param, const DBT* left,
                                        const DBT* right, TXNID txnid_arg,
                                        bool is_shared, TxnidVector* owners) {
@@ -546,7 +545,6 @@ LockManager::RangeLockStatus RangeTreeLockManager::GetRangeLockStatus() {
   }
   return data;
 }
-
 
 }  // namespace ROCKSDB_NAMESPACE
 #endif  // OS_WIN

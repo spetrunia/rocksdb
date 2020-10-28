@@ -48,7 +48,7 @@ class LockManagerHandle {
   // to use.
   virtual LockManager* getLockManager() = 0;
 
-  virtual ~LockManagerHandle(){}
+  virtual ~LockManagerHandle() {}
 };
 
 // A handle to control RangeLockManager (Range-based lock manager) from outside
