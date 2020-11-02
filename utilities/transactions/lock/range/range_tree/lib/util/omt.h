@@ -212,7 +212,7 @@ class omt_node_templated {
   // this needs to be in both implementations because we don't have
   // a "static if" the caller can use
   inline void clear_stolen_bits(void) {}
-};
+};  // note: originally this class had __attribute__((__packed__, aligned(4)))
 
 template <typename omtdata_t>
 class omt_node_templated<omtdata_t, true> {
@@ -239,7 +239,7 @@ class omt_node_templated<omtdata_t, true> {
     this->unset_marked_bit();
     this->unset_marks_below_bit();
   }
-} ;
+};  // note: originally this class had __attribute__((__packed__, aligned(4)))
 
 }  // namespace omt_internal
 
