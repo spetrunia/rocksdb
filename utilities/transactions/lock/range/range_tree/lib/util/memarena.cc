@@ -39,11 +39,13 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident \
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include "../portability/memory.h"
-#include <string.h>
 #include "memarena.h"
 
+#include <string.h>
+
 #include <algorithm>
+
+#include "../portability/memory.h"
 
 void memarena::create(size_t initial_size) {
   _current_chunk = arena_chunk();

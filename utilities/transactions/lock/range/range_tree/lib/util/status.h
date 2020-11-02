@@ -42,21 +42,21 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "partitioned_counter.h"
 // PORT2: #include <util/constexpr.h>
 
-#define TOKUFT_STATUS_INIT(array, k, c, t, l, inc)                           \
-  do {                                                                       \
-    array.status[k].keyname = #k;                                            \
-    array.status[k].columnname = #c;                                         \
-    array.status[k].type = t;                                                \
-    array.status[k].legend = l;                                              \
-    constexpr_static_assert(                                                 \
-        strcmp(#c, "NULL") && strcmp(#c, "0"),                               \
-        "Use nullptr for no column name instead of NULL, 0, etc...");        \
-    constexpr_static_assert(                                                 \
-        (inc) == TOKU_ENGINE_STATUS || strcmp(#c, "nullptr"),                \
-        "Missing column name.");                                             \
-    array.status[k].include =                                                \
-        static_cast<toku_engine_status_include_type>(inc);                   \
-    if (t == STATUS_PARCOUNT) {                                              \
-      array.status[k].value.parcount = create_partitioned_counter();         \
-    }                                                                        \
+#define TOKUFT_STATUS_INIT(array, k, c, t, l, inc)                    \
+  do {                                                                \
+    array.status[k].keyname = #k;                                     \
+    array.status[k].columnname = #c;                                  \
+    array.status[k].type = t;                                         \
+    array.status[k].legend = l;                                       \
+    constexpr_static_assert(                                          \
+        strcmp(#c, "NULL") && strcmp(#c, "0"),                        \
+        "Use nullptr for no column name instead of NULL, 0, etc..."); \
+    constexpr_static_assert(                                          \
+        (inc) == TOKU_ENGINE_STATUS || strcmp(#c, "nullptr"),         \
+        "Missing column name.");                                      \
+    array.status[k].include =                                         \
+        static_cast<toku_engine_status_include_type>(inc);            \
+    if (t == STATUS_PARCOUNT) {                                       \
+      array.status[k].value.parcount = create_partitioned_counter();  \
+    }                                                                 \
   } while (0)

@@ -47,13 +47,14 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 // include here, before they get deprecated
 #include <inttypes.h>
-#include "toku_atomic.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "toku_atomic.h"
 
 #if defined(__cplusplus)
 #include <type_traits>

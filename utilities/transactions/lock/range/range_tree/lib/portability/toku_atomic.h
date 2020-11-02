@@ -40,10 +40,11 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #pragma once
 
 // PORT2: #include <portability/toku_config.h>
-#include "toku_assert_subst.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "toku_assert_subst.h"
 
 __attribute__((const, always_inline)) static inline intptr_t which_cache_line(
     intptr_t addr) {

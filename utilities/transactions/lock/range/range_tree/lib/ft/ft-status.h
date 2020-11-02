@@ -40,7 +40,6 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #pragma once
 
 #include "../db.h"
-
 #include "../portability/toku_race_tools.h"
 #include "../util/status.h"
 

@@ -39,6 +39,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #pragma once
 
+#include <stdlib.h>
+
 /*
  * A memarena is used to efficiently store a collection of objects that never
  * move The pattern is allocate more and more stuff and free all of the items at

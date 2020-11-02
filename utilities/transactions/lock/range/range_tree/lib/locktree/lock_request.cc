@@ -54,10 +54,10 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include "lock_request.h"
 
-#include "locktree.h"
 #include "../portability/toku_race_tools.h"
 #include "../portability/txn_subst.h"
 #include "../util/dbt.h"
+#include "locktree.h"
 
 namespace toku {
 

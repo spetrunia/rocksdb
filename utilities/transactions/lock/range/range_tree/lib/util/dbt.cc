@@ -41,9 +41,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include "dbt.h"
 
-#include "../db.h"
 #include <string.h>
 
+#include "../db.h"
 #include "../portability/memory.h"
 
 DBT *toku_init_dbt(DBT *dbt) {

@@ -54,8 +54,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include <functional>
 
-#include "txnid_set.h"
 #include "../util/omt.h"
+#include "txnid_set.h"
 
 namespace toku {
 
