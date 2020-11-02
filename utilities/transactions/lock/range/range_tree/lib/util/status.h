@@ -48,7 +48,6 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
     array.status[k].columnname = #c;                                         \
     array.status[k].type = t;                                                \
     array.status[k].legend = l;                                              \
-    static_assert((inc) != 0, "Var must be included in at least one place"); \
     constexpr_static_assert(                                                 \
         strcmp(#c, "NULL") && strcmp(#c, "0"),                               \
         "Use nullptr for no column name instead of NULL, 0, etc...");        \
