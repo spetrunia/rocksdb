@@ -54,7 +54,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include "keyrange.h"
 
-#include <util/dbt.h>
+#include "../util/dbt.h"
 
 namespace toku {
 

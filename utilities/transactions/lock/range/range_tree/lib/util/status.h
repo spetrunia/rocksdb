@@ -39,7 +39,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #pragma once
 
-#include <util/partitioned_counter.h>
+#include "partitioned_counter.h"
 // PORT2: #include <util/constexpr.h>
 
 #define TOKUFT_STATUS_INIT(array, k, c, t, l, inc)                           \

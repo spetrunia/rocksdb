@@ -40,7 +40,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #pragma once
 
 // PORT2: #include <portability/toku_config.h>
-#include <portability/toku_assert_subst.h>
+#include "toku_assert_subst.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

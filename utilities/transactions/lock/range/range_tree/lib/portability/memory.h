@@ -39,7 +39,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #pragma once
 
-#include <portability/toku_portability.h>
+#include "toku_portability.h"
 #include <stdlib.h>
 
 /* Percona memory allocation functions and macros.

@@ -39,9 +39,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident \
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include <portability/memory.h>
+#include "../portability/memory.h"
 #include <string.h>
-#include <util/memarena.h>
+#include "memarena.h"
 
 #include <algorithm>
 

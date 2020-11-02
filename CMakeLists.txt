@@ -559,9 +559,6 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 if(WITH_FOLLY_DISTRIBUTED_MUTEX)
   include_directories(${PROJECT_SOURCE_DIR}/third-party/folly)
 endif()
-
-include_directories(${PROJECT_SOURCE_DIR}/utilities/transactions/lock/range/range_tree/lib)
-
 find_package(Threads REQUIRED)
 
 # Main library source code

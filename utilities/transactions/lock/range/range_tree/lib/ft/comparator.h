@@ -38,11 +38,11 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #pragma once
 
-#include <db.h>
+#include "../db.h"
 #include <string.h>
 
-#include "portability/memory.h"
-#include "util/dbt.h"
+#include "../portability/memory.h"
+#include "../util/dbt.h"
 
 typedef int (*ft_compare_func)(void *arg, const DBT *a, const DBT *b);
 

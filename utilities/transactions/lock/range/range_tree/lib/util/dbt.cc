@@ -39,12 +39,12 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident \
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include "util/dbt.h"
+#include "dbt.h"
 
-#include <db.h>
+#include "../db.h"
 #include <string.h>
 
-#include "portability/memory.h"
+#include "../portability/memory.h"
 
 DBT *toku_init_dbt(DBT *dbt) {
   memset(dbt, 0, sizeof(*dbt));

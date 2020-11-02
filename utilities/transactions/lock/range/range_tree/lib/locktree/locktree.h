@@ -52,22 +52,22 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #pragma once
 
-#include <db.h>
-#include <ft/comparator.h>
-#include <portability/toku_external_pthread.h>
-#include <portability/toku_pthread.h>
-#include <portability/toku_time.h>
+#include "../db.h"
+#include "../ft/comparator.h"
+#include "../portability/toku_external_pthread.h"
+#include "../portability/toku_pthread.h"
+#include "../portability/toku_time.h"
 
 #include <atomic>
 // PORT #include <ft/ft-ops.h>  // just for DICTIONARY_ID..
 // PORT: ft-status for LTM_STATUS:
-#include <ft/ft-status.h>
+#include "../ft/ft-status.h"
 
 struct DICTIONARY_ID {
   uint64_t dictid;
 };
 
-#include <util/omt.h>
+#include "../util/omt.h"
 
 #include "range_buffer.h"
 #include "txnid_set.h"

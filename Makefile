@@ -471,7 +471,6 @@ endif
 
 CFLAGS += $(WARNING_FLAGS) -I. -I./include $(PLATFORM_CCFLAGS) $(OPT)
 CXXFLAGS += $(WARNING_FLAGS) -I. -I./include $(PLATFORM_CXXFLAGS) $(OPT) -Woverloaded-virtual -Wnon-virtual-dtor -Wno-missing-field-initializers
-CXXFLAGS += -I./utilities/transactions/lock/range/range_tree/lib
 
 LDFLAGS += $(PLATFORM_LDFLAGS)
 

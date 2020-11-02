@@ -55,9 +55,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "locktree.h"
 
 #include <memory.h>
-#include <portability/toku_pthread.h>
-#include <portability/toku_time.h>
-#include <util/growable_array.h>
+#include "../portability/toku_pthread.h"
+#include "../portability/toku_time.h"
+#include "../util/growable_array.h"
 
 #include "range_buffer.h"
 

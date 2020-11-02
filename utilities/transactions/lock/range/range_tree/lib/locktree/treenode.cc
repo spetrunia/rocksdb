@@ -50,7 +50,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident \
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include <portability/toku_race_tools.h>
+#include "../portability/toku_race_tools.h"
 
 // TODO: source location info might have to be pulled up one caller
 // to be useful

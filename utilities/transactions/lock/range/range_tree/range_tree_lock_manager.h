@@ -11,10 +11,10 @@
 #include "utilities/transactions/lock/range/range_lock_manager.h"
 
 // Lock Tree library:
-#include <locktree/lock_request.h>
-#include <locktree/locktree.h>
+#include "lib/locktree/lock_request.h"
+#include "lib/locktree/locktree.h"
 
-#include "utilities/transactions/lock/range/range_tree/range_tree_lock_tracker.h"
+#include "range_tree_lock_tracker.h"
 
 namespace ROCKSDB_NAMESPACE {
 

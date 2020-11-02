@@ -39,12 +39,10 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #pragma once
 
-#include <db.h>
+#include "../db.h"
 
-// PORT2: #include "portability/toku_config.h"
-// PORT2: #include "portability/toku_list.h"
-#include "portability/toku_race_tools.h"
-#include "util/status.h"
+#include "../portability/toku_race_tools.h"
+#include "../util/status.h"
 
 //
 // Lock Tree Manager statistics

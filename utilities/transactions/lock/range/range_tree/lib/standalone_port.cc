@@ -3,7 +3,7 @@
 /*
   This is a dump ground to make Lock Tree work without the rest of TokuDB.
 */
-#include <db.h>
+#include "db.h"
 #include <string.h>
 
 #include "ft/ft-status.h"

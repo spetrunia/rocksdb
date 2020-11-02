@@ -53,7 +53,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #pragma once
 
-#include <ft/comparator.h>
+#include "../ft/comparator.h"
 
 #include "keyrange.h"
 #include "treenode.h"

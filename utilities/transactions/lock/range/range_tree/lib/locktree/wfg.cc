@@ -52,7 +52,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident \
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include <db.h>
+#include "../db.h"
 // PORT #include <toku_assert.h>
 #include <memory.h>
 #include <string.h>

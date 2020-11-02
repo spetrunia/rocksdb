@@ -54,13 +54,13 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include <string.h>
 
-#include "ft/comparator.h"
-#include "portability/memory.h"
-#include "portability/toku_pthread.h"
+#include "../ft/comparator.h"
+#include "../portability/memory.h"
+#include "../portability/toku_pthread.h"
 // PORT: we need LTM_STATUS
-#include "ft/ft-status.h"
-#include "locktree/keyrange.h"
-#include "portability/txn_subst.h"
+#include "../ft/ft-status.h"
+#include "keyrange.h"
+#include "../portability/txn_subst.h"
 
 namespace toku {
 

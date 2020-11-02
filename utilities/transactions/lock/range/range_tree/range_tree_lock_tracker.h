@@ -13,8 +13,8 @@
 #include "utilities/transactions/lock/lock_tracker.h"
 
 // Range Locking:
-#include "locktree/lock_request.h"
-#include "locktree/locktree.h"
+#include "lib/locktree/lock_request.h"
+#include "lib/locktree/locktree.h"
 
 namespace ROCKSDB_NAMESPACE {
 

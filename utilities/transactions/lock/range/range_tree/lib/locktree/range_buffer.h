@@ -55,8 +55,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include <inttypes.h>
 #include <stdint.h>
 
-#include "util/dbt.h"
-#include "util/memarena.h"
+#include "../util/dbt.h"
+#include "../util/memarena.h"
 
 namespace toku {
 

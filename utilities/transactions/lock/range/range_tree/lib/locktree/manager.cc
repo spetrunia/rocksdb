@@ -52,10 +52,10 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident \
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include <portability/toku_pthread.h>
+#include "../portability/toku_pthread.h"
 #include <stdlib.h>
 #include <string.h>
-#include <util/status.h>
+#include "../util/status.h"
 
 #include "lock_request.h"
 #include "locktree.h"
