@@ -204,10 +204,10 @@ class subtree_templated<true> {
 template <typename omtdata_t, bool subtree_supports_marks>
 class omt_node_templated {
  public:
+  omtdata_t value;
   uint32_t weight;
   subtree_templated<subtree_supports_marks> left;
   subtree_templated<subtree_supports_marks> right;
-  omtdata_t value;
 
   // this needs to be in both implementations because we don't have
   // a "static if" the caller can use
@@ -217,10 +217,10 @@ class omt_node_templated {
 template <typename omtdata_t>
 class omt_node_templated<omtdata_t, true> {
  public:
+  omtdata_t value;
   uint32_t weight;
   subtree_templated<true> left;
   subtree_templated<true> right;
-  omtdata_t value;
   inline bool get_marked(void) const { return left.get_bit(); }
   inline void set_marked_bit(void) { return left.enable_bit(); }
   inline void unset_marked_bit(void) { return left.disable_bit(); }
