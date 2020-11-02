@@ -5,6 +5,7 @@
 #ifndef OS_WIN
 
 #include "range_tree_lock_tracker.h"
+
 #include "range_tree_lock_manager.h"
 
 namespace ROCKSDB_NAMESPACE {

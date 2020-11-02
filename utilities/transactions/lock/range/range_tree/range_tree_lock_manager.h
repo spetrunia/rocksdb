@@ -13,7 +13,6 @@
 // Lock Tree library:
 #include "lib/locktree/lock_request.h"
 #include "lib/locktree/locktree.h"
-
 #include "range_tree_lock_tracker.h"
 
 namespace ROCKSDB_NAMESPACE {
