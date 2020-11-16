@@ -85,16 +85,26 @@ Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
               exclusive ? toku::lock_request::WRITE : toku::lock_request::READ,
               false /* not a big txn */, (void*)wait_txn_id);
 
-  uint64_t killed_time_msec = 0;  // TODO: what should this have?
+  // This is for "periodically wake up and check if the wait is killed" feature
+  // which we are not using.
+  uint64_t killed_time_msec = 0;
   uint64_t wait_time_msec = txn->GetLockTimeout();
+
   // convert microseconds to milliseconds
   if (wait_time_msec != (uint64_t)-1)
     wait_time_msec = (wait_time_msec + 500) / 1000;
 
-  std::vector<DeadlockInfo> di_path;
-  request.m_deadlock_cb = [&](TXNID txnid, bool is_exclusive, std::string key) {
+  std::vector<RangeDeadlockInfo> di_path;
+  request.m_deadlock_cb = [&](TXNID txnid, bool is_exclusive,
+                              const DBT *start_dbt, const DBT *end_dbt) {
+    EndpointWithString start;
+    EndpointWithString end;
+    deserialize_endpoint(start_dbt, &start);
+    deserialize_endpoint(end_dbt, &end);
+
     di_path.push_back({((PessimisticTransaction*)txnid)->GetID(),
-                       column_family_id, is_exclusive, key});
+                       column_family_id, is_exclusive, std::move(start),
+                       std::move(end)});
   };
 
   request.start();
@@ -151,7 +161,8 @@ Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
       return Status::Busy(Status::SubCode::kLockLimit);
     case DB_LOCK_DEADLOCK: {
       std::reverse(di_path.begin(), di_path.end());
-      dlock_buffer_.AddNewPath(DeadlockPath(di_path, request.get_start_time()));
+      dlock_buffer_.AddNewPath(RangeDeadlockPath(di_path,
+                                                 request.get_start_time()));
       return Status::Busy(Status::SubCode::kDeadlock);
     }
     default:
@@ -320,13 +331,34 @@ RangeTreeLockManager::RangeTreeLockManager(
   ltm_.create(on_create, on_destroy, on_escalate, NULL, mutex_factory_);
 }
 
-void RangeTreeLockManager::Resize(uint32_t target_size) {
+void RangeTreeLockManager::SetRangeDeadlockInfoBufferSize(uint32_t target_size) {
   dlock_buffer_.Resize(target_size);
 }
 
-std::vector<DeadlockPath> RangeTreeLockManager::GetDeadlockInfoBuffer() {
+void RangeTreeLockManager::Resize(uint32_t target_size) {
+  SetRangeDeadlockInfoBufferSize(target_size);
+}
+
+std::vector<RangeDeadlockPath> RangeTreeLockManager::GetRangeDeadlockInfoBuffer() {
   return dlock_buffer_.PrepareBuffer();
 }
+
+std::vector<DeadlockPath> RangeTreeLockManager::GetDeadlockInfoBuffer() {
+  std::vector<DeadlockPath> res;
+  std::vector<RangeDeadlockPath> data = GetRangeDeadlockInfoBuffer();
+  // report left endpoints
+  for (auto it = data.begin(); it != data.end(); ++it) {
+    std::vector<DeadlockInfo> path;
+
+    for (auto it2 = it->path.begin(); it2 != it->path.end(); ++it2) {
+      path.push_back({it2->m_txn_id, it2->m_cf_id, it2->m_exclusive,
+                     it2->m_start.slice});
+    }
+    res.push_back(DeadlockPath(path, it->deadlock_time));
+  }
+  return res;
+}
+
 
 /*
   @brief  Lock Escalation Callback function
@@ -496,20 +528,18 @@ struct LOCK_PRINT_CONTEXT {
   uint32_t cfh_id;  // Column Family whose tree we are traversing
 };
 
-/*
-For reporting point locks:
-  struct KeyLockInfo info;
 
-  info.key.append((const char*)left->data, (size_t)left->size);
-  info.exclusive = !is_shared;
-
-  if (!(left->size == right->size &&
-        !memcmp(left->data, right->data, left->size))) {
-    // not a single-point lock
-    info.has_key2 = true;
-    info.key2.append((const char*)right->data, right->size);
+// Report left endpoints of the acquired locks
+LockManager::PointLockStatus RangeTreeLockManager::GetPointLockStatus() {
+  PointLockStatus res;
+  LockManager::RangeLockStatus data = GetRangeLockStatus();
+  // report left endpoints
+  for (auto it = data.begin(); it != data.end(); ++it) {
+    auto& val = it->second;
+    res.insert({ it->first, { val.start.slice, val.ids, val.exclusive}});
   }
-*/
+  return res;
+}
 
 static void push_into_lock_status_data(void* param, const DBT* left,
                                        const DBT* right, TXNID txnid_arg,

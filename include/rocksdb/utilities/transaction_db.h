@@ -51,6 +51,37 @@ class LockManagerHandle {
   virtual ~LockManagerHandle() {}
 };
 
+// Same as class Endpoint, but use std::string to manage the buffer allocation
+struct EndpointWithString {
+  std::string slice;
+  bool inf_suffix;
+};
+
+struct RangeDeadlockInfo {
+  TransactionID m_txn_id;
+  uint32_t m_cf_id;
+  bool m_exclusive;
+
+  EndpointWithString m_start;
+  EndpointWithString m_end;
+};
+
+struct RangeDeadlockPath {
+  std::vector<RangeDeadlockInfo> path;
+  bool limit_exceeded;
+  int64_t deadlock_time;
+
+  explicit RangeDeadlockPath(std::vector<RangeDeadlockInfo> path_entry,
+                        const int64_t& dl_time)
+      : path(path_entry), limit_exceeded(false), deadlock_time(dl_time) {}
+
+  // empty path, limit exceeded constructor and default constructor
+  explicit RangeDeadlockPath(const int64_t& dl_time = 0, bool limit = false)
+      : path(0), limit_exceeded(limit), deadlock_time(dl_time) {}
+
+  bool empty() { return path.empty() && !limit_exceeded; }
+};
+
 // A handle to control RangeLockManager (Range-based lock manager) from outside
 // RocksDB
 class RangeLockManagerHandle : public LockManagerHandle {
@@ -76,6 +107,11 @@ class RangeLockManagerHandle : public LockManagerHandle {
 
   // Get the current counter values
   virtual Counters GetStatus() = 0;
+
+  // Functions for range-based Deadlock reporting.
+  virtual std::vector<RangeDeadlockPath> GetRangeDeadlockInfoBuffer() = 0;
+  virtual void SetRangeDeadlockInfoBufferSize(uint32_t target_size) = 0;
+
   virtual ~RangeLockManagerHandle(){};
 };
 
@@ -260,12 +296,6 @@ struct KeyLockInfo {
   std::string key;
   std::vector<TransactionID> ids;
   bool exclusive;
-};
-
-// Same as class Endpoint, but use std::string to manage the buffer allocation
-struct EndpointWithString {
-  std::string slice;
-  bool inf_suffix;
 };
 
 struct RangeLockInfo {

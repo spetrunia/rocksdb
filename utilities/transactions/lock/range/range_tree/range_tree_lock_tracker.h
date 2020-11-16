@@ -80,7 +80,10 @@ class RangeTreeLockTracker : public LockTracker {
   void Track(const PointLockRequest&) override;
   void Track(const RangeLockRequest&) override;
 
-  bool IsPointLockSupported() const override { return false; }
+  bool IsPointLockSupported() const override {
+    // This indicates that we don't implement GetPointLockStatus()
+    return false;
+  }
   bool IsRangeLockSupported() const override { return true; }
 
   // a Not-supported dummy implementation.

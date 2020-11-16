@@ -179,8 +179,7 @@ bool lock_request::deadlock_exists(const txnid_set &conflicts) {
       lock_request *req = find_lock_request(a);
       if (req) {
         m_deadlock_cb(req->m_txnid, (req->m_type == lock_request::WRITE),
-                      std::string((const char *)req->m_left_key->data,
-                                  req->m_left_key->size));
+                      req->m_left_key,req->m_right_key);
       }
     };
   }

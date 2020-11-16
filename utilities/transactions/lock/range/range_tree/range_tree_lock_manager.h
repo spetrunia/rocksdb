@@ -19,6 +19,8 @@ namespace ROCKSDB_NAMESPACE {
 
 using namespace toku;
 
+typedef DeadlockInfoBufferTempl<RangeDeadlockPath> RangeDeadlockInfoBuffer;
+
 /*
   A Range Lock Manager that uses PerconaFT's locktree library
 */
@@ -30,9 +32,11 @@ class RangeTreeLockManager : public RangeLockManagerBase,
   void AddColumnFamily(const ColumnFamilyHandle* cfh) override;
   void RemoveColumnFamily(const ColumnFamilyHandle* cfh) override;
 
-  // Resize the deadlock-info buffer, does nothing currently
   void Resize(uint32_t) override;
   std::vector<DeadlockPath> GetDeadlockInfoBuffer() override;
+
+  std::vector<RangeDeadlockPath> GetRangeDeadlockInfoBuffer() override;
+  void SetRangeDeadlockInfoBufferSize(uint32_t target_size) override;
 
   // Get a lock on a range
   //  @note only exclusive locks are currently supported (requesting a
@@ -66,15 +70,10 @@ class RangeTreeLockManager : public RangeLockManagerBase,
 
   bool IsPointLockSupported() const override {
     // One could have acquired a point lock (it is reduced to range lock)
-    // but This doesn't mean that one could not have acquired point locks.
-    // this means we can't implement GetPointLockStatus()
-    return false;
+    return true;
   }
 
-  PointLockStatus GetPointLockStatus() override {
-    // No point locks
-    return {};
-  }
+  PointLockStatus GetPointLockStatus() override;
 
   // This is from LockManager
   LockManager::RangeLockStatus GetRangeLockStatus() override;
@@ -107,7 +106,7 @@ class RangeTreeLockManager : public RangeLockManagerBase,
   // (uses the same approach as TransactionLockMgr::lock_maps_cache_)
   std::unique_ptr<ThreadLocalPtr> ltree_lookup_cache_;
 
-  DeadlockInfoBuffer dlock_buffer_;
+  RangeDeadlockInfoBuffer dlock_buffer_;
 
   // Get the lock tree which stores locks for Column Family with given cf_id
   toku::locktree* get_locktree_by_cfid(uint32_t cf_id);

@@ -20,6 +20,8 @@
 #include "utilities/transactions/pessimistic_transaction_db.h"
 #include "utilities/transactions/transaction_test.h"
 
+#include "utilities/transactions/lock/point/point_lock_manager_test.h"
+
 using std::string;
 
 namespace ROCKSDB_NAMESPACE {
@@ -219,9 +221,35 @@ TEST_F(RangeLockingTest, MultipleTrxLockStatusData) {
   delete txn1;
 }
 
+
+void PointLockManagerTestExternalSetup(PointLockManagerTest* self)
+{
+  self->env_ = Env::Default();
+  self->db_dir_ = test::PerThreadDBPath("point_lock_manager_test");
+  ASSERT_OK(self->env_->CreateDir(self->db_dir_));
+
+  Options opt;
+  opt.create_if_missing = true;
+  TransactionDBOptions txn_opt;
+  txn_opt.transaction_lock_timeout = 0;
+
+  auto mutex_factory = std::make_shared<TransactionDBMutexFactoryImpl>();
+  self->locker_.reset(NewRangeLockManager(mutex_factory)->getLockManager());
+  std::shared_ptr<RangeLockManagerHandle> range_lock_mgr =
+      std::dynamic_pointer_cast<RangeLockManagerHandle>(self->locker_);
+  txn_opt.lock_mgr_handle = range_lock_mgr;
+
+  ASSERT_OK(TransactionDB::Open(opt, txn_opt, self->db_dir_, &self->db_));
+  self->wait_sync_point_name_ = "RangeTreeLockManager::TryRangeLock:WaitingTxn";
+}
+
+INSTANTIATE_TEST_CASE_P(RangeLockManager, AnyLockManagerTest,
+                        ::testing::Values(PointLockManagerTestExternalSetup));
+
 }  // namespace ROCKSDB_NAMESPACE
 
 int main(int argc, char** argv) {
+  ROCKSDB_NAMESPACE::port::InstallStackTraceHandler();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
