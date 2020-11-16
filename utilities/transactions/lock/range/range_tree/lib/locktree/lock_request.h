@@ -226,7 +226,7 @@ class lock_request {
   void (*m_retry_test_callback)(void);
 
  public:
-  std::function<void(TXNID, bool, const DBT*, const DBT*)> m_deadlock_cb;
+  std::function<void(TXNID, bool, const DBT *, const DBT *)> m_deadlock_cb;
 
   friend class lock_request_unit_test;
 };

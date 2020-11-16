@@ -40,8 +40,7 @@ TEST_F(PointLockManagerTest, LockStatus) {
     ASSERT_EQ(s.count(cf_id), 2u);
     auto range = s.equal_range(cf_id);
     for (auto it = range.first; it != range.second; it++) {
-      ASSERT_TRUE(it->second.key == "k1" ||
-                  it->second.key == "k2");
+      ASSERT_TRUE(it->second.key == "k1" || it->second.key == "k2");
       if (it->second.key == "k1") {
         ASSERT_EQ(it->second.exclusive, true);
         ASSERT_EQ(it->second.ids.size(), 1u);

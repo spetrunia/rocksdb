@@ -17,10 +17,9 @@
 #include "rocksdb/perf_context.h"
 #include "rocksdb/utilities/transaction.h"
 #include "rocksdb/utilities/transaction_db.h"
+#include "utilities/transactions/lock/point/point_lock_manager_test.h"
 #include "utilities/transactions/pessimistic_transaction_db.h"
 #include "utilities/transactions/transaction_test.h"
-
-#include "utilities/transactions/lock/point/point_lock_manager_test.h"
 
 using std::string;
 
@@ -221,9 +220,7 @@ TEST_F(RangeLockingTest, MultipleTrxLockStatusData) {
   delete txn1;
 }
 
-
-void PointLockManagerTestExternalSetup(PointLockManagerTest* self)
-{
+void PointLockManagerTestExternalSetup(PointLockManagerTest* self) {
   self->env_ = Env::Default();
   self->db_dir_ = test::PerThreadDBPath("point_lock_manager_test");
   ASSERT_OK(self->env_->CreateDir(self->db_dir_));

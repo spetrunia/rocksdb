@@ -1,14 +1,12 @@
 
-#include "utilities/transactions/lock/point/point_lock_manager.h"
-
 #include "file/file_util.h"
 #include "port/port.h"
 #include "port/stack_trace.h"
 #include "rocksdb/utilities/transaction_db.h"
 #include "test_util/testharness.h"
 #include "test_util/testutil.h"
+#include "utilities/transactions/lock/point/point_lock_manager.h"
 #include "utilities/transactions/pessimistic_transaction_db.h"
-
 #include "utilities/transactions/transaction_db_mutex_impl.h"
 
 namespace ROCKSDB_NAMESPACE {
@@ -53,7 +51,7 @@ class PointLockManagerTest : public testing::Test {
     // CAUTION: This test creates a separate lock manager object (right, NOT
     // the one that the TransactionDB is using!), and runs tests on it.
     locker_.reset(new PointLockManager(
-          static_cast<PessimisticTransactionDB*>(db_), txn_opt));
+        static_cast<PessimisticTransactionDB*>(db_), txn_opt));
 
     wait_sync_point_name_ = "PointLockManager::AcquireWithTimeout:WaitingTxn";
   }
@@ -72,7 +70,7 @@ class PointLockManagerTest : public testing::Test {
  protected:
   Env* env_;
   std::shared_ptr<LockManager> locker_;
-  const char *wait_sync_point_name_;
+  const char* wait_sync_point_name_;
   friend void PointLockManagerTestExternalSetup(PointLockManagerTest*);
 
  private:
@@ -80,13 +78,11 @@ class PointLockManagerTest : public testing::Test {
   TransactionDB* db_;
 };
 
-
 typedef void (*init_func_t)(PointLockManagerTest*);
 
 class AnyLockManagerTest : public PointLockManagerTest,
-                           public testing::WithParamInterface<init_func_t>
-{
-public:
+                           public testing::WithParamInterface<init_func_t> {
+ public:
   void SetUp() override {
     // If a custom setup function was provided, use it. Otherwise, use what we
     // have inherited.
@@ -189,7 +185,7 @@ TEST_P(AnyLockManagerTest, LockConflict) {
   delete txn2;
 }
 
-port::Thread BlockUntilWaitingTxn(const char *sync_point_name,
+port::Thread BlockUntilWaitingTxn(const char* sync_point_name,
                                   std::function<void()> f) {
   std::atomic<bool> reached(false);
   ROCKSDB_NAMESPACE::SyncPoint::GetInstance()->SetCallBack(
@@ -278,4 +274,3 @@ TEST_P(AnyLockManagerTest, Deadlock) {
 }
 
 }  // namespace ROCKSDB_NAMESPACE
-

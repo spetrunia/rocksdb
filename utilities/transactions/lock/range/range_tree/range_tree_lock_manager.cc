@@ -96,7 +96,7 @@ Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
 
   std::vector<RangeDeadlockInfo> di_path;
   request.m_deadlock_cb = [&](TXNID txnid, bool is_exclusive,
-                              const DBT *start_dbt, const DBT *end_dbt) {
+                              const DBT* start_dbt, const DBT* end_dbt) {
     EndpointWithString start;
     EndpointWithString end;
     deserialize_endpoint(start_dbt, &start);
@@ -161,8 +161,8 @@ Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
       return Status::Busy(Status::SubCode::kLockLimit);
     case DB_LOCK_DEADLOCK: {
       std::reverse(di_path.begin(), di_path.end());
-      dlock_buffer_.AddNewPath(RangeDeadlockPath(di_path,
-                                                 request.get_start_time()));
+      dlock_buffer_.AddNewPath(
+          RangeDeadlockPath(di_path, request.get_start_time()));
       return Status::Busy(Status::SubCode::kDeadlock);
     }
     default:
@@ -331,7 +331,8 @@ RangeTreeLockManager::RangeTreeLockManager(
   ltm_.create(on_create, on_destroy, on_escalate, NULL, mutex_factory_);
 }
 
-void RangeTreeLockManager::SetRangeDeadlockInfoBufferSize(uint32_t target_size) {
+void RangeTreeLockManager::SetRangeDeadlockInfoBufferSize(
+    uint32_t target_size) {
   dlock_buffer_.Resize(target_size);
 }
 
@@ -339,7 +340,8 @@ void RangeTreeLockManager::Resize(uint32_t target_size) {
   SetRangeDeadlockInfoBufferSize(target_size);
 }
 
-std::vector<RangeDeadlockPath> RangeTreeLockManager::GetRangeDeadlockInfoBuffer() {
+std::vector<RangeDeadlockPath>
+RangeTreeLockManager::GetRangeDeadlockInfoBuffer() {
   return dlock_buffer_.PrepareBuffer();
 }
 
@@ -351,14 +353,13 @@ std::vector<DeadlockPath> RangeTreeLockManager::GetDeadlockInfoBuffer() {
     std::vector<DeadlockInfo> path;
 
     for (auto it2 = it->path.begin(); it2 != it->path.end(); ++it2) {
-      path.push_back({it2->m_txn_id, it2->m_cf_id, it2->m_exclusive,
-                     it2->m_start.slice});
+      path.push_back(
+          {it2->m_txn_id, it2->m_cf_id, it2->m_exclusive, it2->m_start.slice});
     }
     res.push_back(DeadlockPath(path, it->deadlock_time));
   }
   return res;
 }
-
 
 /*
   @brief  Lock Escalation Callback function
@@ -528,7 +529,6 @@ struct LOCK_PRINT_CONTEXT {
   uint32_t cfh_id;  // Column Family whose tree we are traversing
 };
 
-
 // Report left endpoints of the acquired locks
 LockManager::PointLockStatus RangeTreeLockManager::GetPointLockStatus() {
   PointLockStatus res;
@@ -536,7 +536,7 @@ LockManager::PointLockStatus RangeTreeLockManager::GetPointLockStatus() {
   // report left endpoints
   for (auto it = data.begin(); it != data.end(); ++it) {
     auto& val = it->second;
-    res.insert({ it->first, { val.start.slice, val.ids, val.exclusive}});
+    res.insert({it->first, {val.start.slice, val.ids, val.exclusive}});
   }
   return res;
 }

@@ -72,7 +72,7 @@ struct RangeDeadlockPath {
   int64_t deadlock_time;
 
   explicit RangeDeadlockPath(std::vector<RangeDeadlockInfo> path_entry,
-                        const int64_t& dl_time)
+                             const int64_t& dl_time)
       : path(path_entry), limit_exceeded(false), deadlock_time(dl_time) {}
 
   // empty path, limit exceeded constructor and default constructor

@@ -27,14 +27,12 @@ struct LockInfo;
 struct LockMap;
 struct LockMapStripe;
 
-
-template<class Path>
+template <class Path>
 class DeadlockInfoBufferTempl {
  private:
   std::vector<Path> paths_buffer_;
   uint32_t buffer_idx_;
   std::mutex paths_buffer_mutex_;
-
 
   std::vector<Path> Normalize() {
     auto working = paths_buffer_;
@@ -47,7 +45,8 @@ class DeadlockInfoBufferTempl {
     if (paths_buffer_[buffer_idx_].empty()) {
       working.resize(buffer_idx_);
     } else {
-      std::rotate(working.begin(), working.begin() + buffer_idx_, working.end());
+      std::rotate(working.begin(), working.begin() + buffer_idx_,
+                  working.end());
     }
 
     return working;
