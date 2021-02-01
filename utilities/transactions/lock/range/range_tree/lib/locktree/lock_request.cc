@@ -6,6 +6,8 @@
 /*======
 This file is part of PerconaFT.
 
+Modified to make locktree usable as a separate module and support shared
+locks.
 
 Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
@@ -148,7 +150,13 @@ void lock_request::build_wait_graph(wfg *wait_graph,
   for (uint32_t i = 0; i < num_conflicts; i++) {
     TXNID conflicting_txnid = conflicts.get(i);
     lock_request *conflicting_request = find_lock_request(conflicting_txnid);
-    invariant(conflicting_txnid != m_txnid);
+    if (conflicting_txnid == m_txnid) {
+      // We can get here for example when TRX1 and TRX2 have a shared lock on
+      // a key, and then TRX1 tries to acquire an exclusive lock on that key.
+      // It will get a conflict (with TRX2) but
+      // iterate_and_get_overlapping_row_locks will return both locks.
+      continue;
+    }
     invariant(conflicting_request != this);
     if (conflicting_request) {
       bool already_exists = wait_graph->node_exists(conflicting_txnid);
