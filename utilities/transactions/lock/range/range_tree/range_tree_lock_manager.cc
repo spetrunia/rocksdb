@@ -115,11 +115,13 @@ Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
                        std::move(end)});
   };
 
-  request.start();
+  int r = request.start();
 
-  const int r = request.wait(wait_time_msec, killed_time_msec,
-                             nullptr,  // killed_callback
-                             wait_callback_for_locktree, nullptr);
+  if (r) {
+    r = request.wait(wait_time_msec, killed_time_msec,
+                     nullptr,  // killed_callback
+                     wait_callback_for_locktree, nullptr);
+  }
 
   // Inform the txn that we are no longer waiting:
   txn->ClearWaitingTxn();
