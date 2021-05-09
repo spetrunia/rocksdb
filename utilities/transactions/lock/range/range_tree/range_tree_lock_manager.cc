@@ -118,6 +118,8 @@ Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
   int r = request.start();
 
   if (r) {
+    PERF_TIMER_GUARD(key_lock_wait_time);
+    PERF_COUNTER_ADD(key_lock_wait_count, 1);
     r = request.wait(wait_time_msec, killed_time_msec,
                      nullptr,  // killed_callback
                      wait_callback_for_locktree, nullptr);
