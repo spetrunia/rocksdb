@@ -68,6 +68,27 @@ int toku_builtin_compare_fun(const DBT *, const DBT *)
 
 namespace toku {
 
+inline int toku_keycompare2(const void *key1, size_t key1len, const void *key2,
+                    size_t key2len) {
+  size_t comparelen = key1len < key2len ? key1len : key2len;
+  int c = memcmp(key1, key2, comparelen);
+  if (__builtin_expect(c != 0, 1)) {
+    return c;
+  } else {
+    if (key1len < key2len) {
+      return -1;
+    } else if (key1len > key2len) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+}
+
+inline int toku_builtin_compare_fun2(const DBT *a, const DBT *b) {
+  return toku_keycompare(a->data, a->size, b->data, b->size);
+}
+
 // a comparator object encapsulates the data necessary for
 // comparing two keys in a fractal tree. it further understands
 // that points may be positive or negative infinity.
@@ -115,6 +136,7 @@ class comparator {
     if (__builtin_expect(toku_dbt_is_infinite(a) || toku_dbt_is_infinite(b),
                          0)) {
       return toku_dbt_infinite_compare(a, b);
+#if 0
     } else if (_memcmp_magic != MEMCMP_MAGIC_NONE
                // If `a' has the memcmp magic..
                && dbt_has_memcmp_magic(a)
@@ -125,6 +147,10 @@ class comparator {
     } else {
       // yikes, const sadness here
       return _cmp(_cmp_arg, a, b);
+    }
+#endif
+    } else {
+      return toku_builtin_compare_fun2(a, b);
     }
   }
 
