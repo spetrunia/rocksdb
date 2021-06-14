@@ -112,6 +112,7 @@ void RangeLockList::ReleaseLocks(RangeTreeLockManager *mgr,
     if (it.second->get_num_ranges()) {
       auto lt_ptr = mgr->GetLockTreeForCF(it.first);
       toku::locktree *lt = lt_ptr.get();
+      PERF_COUNTER_ADD(range_lock_unlocks, it.second->get_num_ranges());
 
       lt->release_locks((TXNID)txn, it.second.get(), all_trx_locks);
 

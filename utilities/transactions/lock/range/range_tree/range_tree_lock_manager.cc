@@ -47,6 +47,10 @@ void serialize_endpoint(const Endpoint& endp, std::string* buf) {
   buf->append(endp.slice.data(), endp.slice.size());
 }
 
+void increment_mutex_lock_counter() {
+    PERF_COUNTER_ADD(range_lock_mutex_locks, 1);
+}
+
 // Decode the endpoint from the format it is stored in the locktree (DBT) to
 // one used outside (EndpointWithString)
 void deserialize_endpoint(const DBT* dbt, EndpointWithString* endp) {
@@ -79,6 +83,7 @@ Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
 
   auto lt = GetLockTreeForCF(column_family_id);
 
+  PERF_COUNTER_ADD(range_lock_locks, 1);
   // Put the key waited on into request's m_extra. See
   // wait_callback_for_locktree for details.
   std::string wait_key(start_endp.slice.data(), start_endp.slice.size());

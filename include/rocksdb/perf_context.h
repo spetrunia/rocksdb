@@ -193,6 +193,11 @@ struct PerfContext {
   // number of times acquiring a lock was blocked by another transaction.
   uint64_t key_lock_wait_count;
 
+  uint64_t range_lock_locks;
+  uint64_t range_lock_unlocks;
+  uint64_t range_lock_mutex_locks;
+
+
   // Total time spent in Env filesystem operations. These are only populated
   // when TimedEnv is used.
   uint64_t env_new_sequential_file_nanos;

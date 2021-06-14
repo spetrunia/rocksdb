@@ -97,6 +97,10 @@ PerfContext::PerfContext(const PerfContext& other) {
   key_lock_wait_time = other.key_lock_wait_time;
   key_lock_wait_count = other.key_lock_wait_count;
 
+  range_lock_locks= other.range_lock_locks;
+  range_lock_unlocks= other.range_lock_unlocks;
+  range_lock_mutex_locks= other.range_lock_mutex_locks;
+
   env_new_sequential_file_nanos = other.env_new_sequential_file_nanos;
   env_new_random_access_file_nanos = other.env_new_random_access_file_nanos;
   env_new_writable_file_nanos = other.env_new_writable_file_nanos;
@@ -193,6 +197,10 @@ PerfContext::PerfContext(PerfContext&& other) noexcept {
   bloom_sst_miss_count = other.bloom_sst_miss_count;
   key_lock_wait_time = other.key_lock_wait_time;
   key_lock_wait_count = other.key_lock_wait_count;
+
+  range_lock_locks= other.range_lock_locks;
+  range_lock_unlocks= other.range_lock_unlocks;
+  range_lock_mutex_locks= other.range_lock_mutex_locks;
 
   env_new_sequential_file_nanos = other.env_new_sequential_file_nanos;
   env_new_random_access_file_nanos = other.env_new_random_access_file_nanos;
@@ -293,6 +301,10 @@ PerfContext& PerfContext::operator=(const PerfContext& other) {
   key_lock_wait_time = other.key_lock_wait_time;
   key_lock_wait_count = other.key_lock_wait_count;
 
+  range_lock_locks= other.range_lock_locks;
+  range_lock_unlocks= other.range_lock_unlocks;
+  range_lock_mutex_locks= other.range_lock_mutex_locks;
+
   env_new_sequential_file_nanos = other.env_new_sequential_file_nanos;
   env_new_random_access_file_nanos = other.env_new_random_access_file_nanos;
   env_new_writable_file_nanos = other.env_new_writable_file_nanos;
@@ -388,6 +400,10 @@ void PerfContext::Reset() {
   bloom_sst_miss_count = 0;
   key_lock_wait_time = 0;
   key_lock_wait_count = 0;
+
+  range_lock_locks= 0;
+  range_lock_unlocks= 0;
+  range_lock_mutex_locks= 0;
 
   env_new_sequential_file_nanos = 0;
   env_new_random_access_file_nanos = 0;

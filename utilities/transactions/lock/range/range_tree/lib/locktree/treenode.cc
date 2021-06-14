@@ -57,11 +57,21 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include "../portability/toku_race_tools.h"
 
+namespace rocksdb {
+
+void increment_mutex_lock_counter();
+
+}
+
 namespace toku {
 
 // TODO: source location info might have to be pulled up one caller
 // to be useful
-void treenode::mutex_lock(void) { toku_mutex_lock(&m_mutex); }
+void treenode::mutex_lock(void) {
+
+    rocksdb::increment_mutex_lock_counter();
+    toku_mutex_lock(&m_mutex); 
+}
 
 void treenode::mutex_unlock(void) { toku_mutex_unlock(&m_mutex); }
 
