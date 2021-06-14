@@ -152,6 +152,7 @@ class lock_request {
   void kill_waiter(void);
   static void kill_waiter(locktree *lt, void *extra);
 
+  void *acquired_lock_node;
  private:
   enum state {
     UNINITIALIZED,

@@ -101,7 +101,7 @@ void concurrent_tree::locked_keyrange::acquire(const keyrange &range) {
 
 bool concurrent_tree::locked_keyrange::add_shared_owner(const keyrange &range,
                                                         TXNID new_owner) {
-  return m_subtree->insert(range, new_owner, /*is_shared*/ true);
+  return m_subtree->insert(range, new_owner, /*is_shared*/ true, NULL /*lock_data*/);
 }
 
 void concurrent_tree::locked_keyrange::release(void) {
@@ -109,12 +109,15 @@ void concurrent_tree::locked_keyrange::release(void) {
 }
 
 void concurrent_tree::locked_keyrange::insert(const keyrange &range,
-                                              TXNID txnid, bool is_shared) {
+                                              TXNID txnid, bool is_shared,
+                                              void **lock_data) {
   // empty means no children, and only the root should ever be empty
   if (m_subtree->is_empty()) {
     m_subtree->set_range_and_txnid(range, txnid, is_shared);
+    if (lock_data)
+        *lock_data= NULL; //psergey-todo: inserted root is here
   } else {
-    m_subtree->insert(range, txnid, is_shared);
+    m_subtree->insert(range, txnid, is_shared, lock_data);
   }
 }
 

@@ -224,9 +224,10 @@ static void remove_row_lock_from_tree(concurrent_tree::locked_keyrange *lkr,
 // the memory tracker of this newly acquired lock.
 static void insert_row_lock_into_tree(concurrent_tree::locked_keyrange *lkr,
                                       const row_lock &lock,
-                                      locktree_manager *mgr) {
+                                      locktree_manager *mgr,
+                                      void **lock_data) {
   uint64_t mem_used = row_lock_size_in_tree(lock);
-  lkr->insert(lock.range, lock.txnid, lock.is_shared);
+  lkr->insert(lock.range, lock.txnid, lock.is_shared, lock_data);
   if (mgr != nullptr) {
     mgr->note_mem_used(mem_used);
   }
@@ -297,7 +298,7 @@ void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
     sto_lkr.prepare(&sto_rangetree);
     int r = acquire_lock_consolidated(&sto_lkr, m_sto_txnid, rec.get_left_key(),
                                       rec.get_right_key(),
-                                      rec.get_exclusive_flag(), nullptr);
+                                      rec.get_exclusive_flag(), nullptr, nullptr);
     invariant_zero(r);
     sto_lkr.release();
     iter.next();
@@ -311,7 +312,9 @@ void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
             TxnidVector *owners) {
       // There can't be multiple owners in STO mode
       invariant_zero(owners);
-      dst_lkr->insert(range, txnid, is_shared);
+      // psergey-todo: here is the migration from STO to non-STO, without
+      // psergey-todo:remembering the ranges...
+      dst_lkr->insert(range, txnid, is_shared, NULL);
       return true;
     }
   } migrate_fn;
@@ -329,7 +332,9 @@ bool locktree::sto_try_acquire(void *prepared_lkr, TXNID txnid,
                                const DBT *left_key, const DBT *right_key,
                                bool is_write_request) {
   if (m_rangetree->is_empty() && m_sto_buffer.is_empty() &&
-      toku_unsafe_fetch(m_sto_score) >= STO_SCORE_THRESHOLD) {
+      toku_unsafe_fetch(m_sto_score) >= STO_SCORE_THRESHOLD && 
+      false // psergey: disable STO optimization
+      ) {
     // We can do the optimization because the rangetree is empty, and
     // we know its worth trying because the sto score is big enough.
     sto_begin(txnid);
@@ -412,7 +417,8 @@ int locktree::acquire_lock_consolidated(void *prepared_lkr, TXNID txnid,
                                         const DBT *left_key,
                                         const DBT *right_key,
                                         bool is_write_request,
-                                        txnid_set *conflicts) {
+                                        txnid_set *conflicts,
+                                        void **lock_data) {
   int r = 0;
   concurrent_tree::locked_keyrange *lkr;
 
@@ -471,19 +477,35 @@ int locktree::acquire_lock_consolidated(void *prepared_lkr, TXNID txnid,
     // requested range into one dominating range. then we insert the dominating
     // range.
     bool all_shared = !is_write_request;
+    bool need_insert = true;
     for (size_t i = 0; i < num_overlapping_row_locks; i++) {
       row_lock overlapping_lock = overlapping_row_locks.fetch_unchecked(i);
       invariant(overlapping_lock.txnid == txnid);
-      requested_range.extend(m_cmp, overlapping_lock.range);
-      remove_row_lock_from_tree(lkr, overlapping_lock, TXNID_ANY, m_mgr);
-      all_shared = all_shared && overlapping_lock.is_shared;
+      
+      // psergey: dont "remove and add back" if we're getting the same lock
+      // as we already have
+      keyrange::comparison c = requested_range.compare(m_cmp, overlapping_lock.range);
+      if (num_overlapping_row_locks == 1 && c == keyrange::EQUALS &&
+          !overlapping_lock.is_shared == is_write_request) {
+        // This is the same lock as we already have
+        need_insert = false;
+        *lock_data=(void*)0x1; // Reused
+        break;
+      } else {
+        need_insert = true;
+        requested_range.extend(m_cmp, overlapping_lock.range);
+        remove_row_lock_from_tree(lkr, overlapping_lock, TXNID_ANY, m_mgr);
+        all_shared = all_shared && overlapping_lock.is_shared;
+      }
     }
-
-    row_lock new_lock = {.range = requested_range,
-                         .txnid = txnid,
-                         .is_shared = all_shared,
-                         .owners = nullptr};
-    insert_row_lock_into_tree(lkr, new_lock, m_mgr);
+    
+    if (need_insert) {
+      row_lock new_lock = {.range = requested_range,
+                           .txnid = txnid,
+                           .is_shared = all_shared,
+                           .owners = nullptr};
+      insert_row_lock_into_tree(lkr, new_lock, m_mgr, lock_data);
+    }
   } else {
     r = DB_LOCK_NOTGRANTED;
   }
@@ -498,7 +520,8 @@ int locktree::acquire_lock_consolidated(void *prepared_lkr, TXNID txnid,
 // transactions that conflict with this request.
 int locktree::acquire_lock(bool is_write_request, TXNID txnid,
                            const DBT *left_key, const DBT *right_key,
-                           txnid_set *conflicts) {
+                           txnid_set *conflicts,
+                           void **lock_data) {
   int r = 0;
 
   // we are only supporting write locks for simplicity
@@ -514,7 +537,7 @@ int locktree::acquire_lock(bool is_write_request, TXNID txnid,
       sto_try_acquire(&lkr, txnid, left_key, right_key, is_write_request);
   if (!acquired) {
     r = acquire_lock_consolidated(&lkr, txnid, left_key, right_key,
-                                  is_write_request, conflicts);
+                                  is_write_request, conflicts, lock_data);
   }
 
   lkr.release();
@@ -523,13 +546,14 @@ int locktree::acquire_lock(bool is_write_request, TXNID txnid,
 
 int locktree::try_acquire_lock(bool is_write_request, TXNID txnid,
                                const DBT *left_key, const DBT *right_key,
-                               txnid_set *conflicts, bool big_txn) {
+                               txnid_set *conflicts, bool big_txn, 
+                               void **lock_data) {
   // All ranges in the locktree must have left endpoints <= right endpoints.
   // Range comparisons rely on this fact, so we make a paranoid invariant here.
   paranoid_invariant(m_cmp(left_key, right_key) <= 0);
   int r = m_mgr == nullptr ? 0 : m_mgr->check_current_lock_constraints(big_txn);
   if (r == 0) {
-    r = acquire_lock(is_write_request, txnid, left_key, right_key, conflicts);
+    r = acquire_lock(is_write_request, txnid, left_key, right_key, conflicts, lock_data);
   }
   return r;
 }
@@ -537,15 +561,15 @@ int locktree::try_acquire_lock(bool is_write_request, TXNID txnid,
 // the locktree silently upgrades read locks to write locks for simplicity
 int locktree::acquire_read_lock(TXNID txnid, const DBT *left_key,
                                 const DBT *right_key, txnid_set *conflicts,
-                                bool big_txn) {
+                                bool big_txn, void **lock_data) {
   return try_acquire_lock(false, txnid, left_key, right_key, conflicts,
-                          big_txn);
+                          big_txn, lock_data);
 }
 
 int locktree::acquire_write_lock(TXNID txnid, const DBT *left_key,
                                  const DBT *right_key, txnid_set *conflicts,
-                                 bool big_txn) {
-  return try_acquire_lock(true, txnid, left_key, right_key, conflicts, big_txn);
+                                 bool big_txn, void **lock_data) {
+  return try_acquire_lock(true, txnid, left_key, right_key, conflicts, big_txn, lock_data);
 }
 
 // typedef void (*dump_callback)(void *cdata, const DBT *left, const DBT *right,
@@ -736,7 +760,26 @@ void locktree::release_locks(TXNID txnid, const range_buffer *ranges,
       // Range comparisons rely on this fact, so we make a paranoid invariant
       // here.
       paranoid_invariant(m_cmp(left_key, right_key) <= 0);
-      remove_overlapping_locks_for_txnid(txnid, left_key, right_key);
+
+
+      //psergey-todo: here, check rec._header.lock_data...
+      void *lock_data= rec.get_lock_data();
+      if (lock_data == (void*)0x1) {
+         // Do nothing. Double-added nodea
+      } else if (lock_data) {
+        // psergey-todo: new removal procedure.
+        // The caller will call retry_all_lock_requests. 
+        // We just set m_is_deleted...
+        treenode *node= (treenode*)lock_data;
+        node->m_is_deleted.store(1);
+      } else {
+        // psergey-todo: this should be the exception. It should locate the
+        // node and set m_is_deleted=1...
+        fprintf(stderr, "AAAA wrong removal!\n");
+        assert(0);
+        remove_overlapping_locks_for_txnid(txnid, left_key, right_key);
+      }
+
       iter.next();
     }
     // Increase the sto score slightly. Eventually it will hit
@@ -955,7 +998,7 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback,
                        .txnid = current_txnid,
                        .is_shared = !rec.get_exclusive_flag(),
                        .owners = nullptr};
-      insert_row_lock_into_tree(&lkr, lock, m_mgr);
+      insert_row_lock_into_tree(&lkr, lock, m_mgr, NULL);
       iter.next();
     }
 

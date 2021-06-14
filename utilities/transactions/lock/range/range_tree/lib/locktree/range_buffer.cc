@@ -72,8 +72,10 @@ bool range_buffer::record_header::right_is_infinite(void) const {
 
 void range_buffer::record_header::init(const DBT *left_key,
                                        const DBT *right_key,
-                                       bool is_exclusive) {
+                                       bool is_exclusive, 
+                                       void *lock_data_arg) {
   is_exclusive_lock = is_exclusive;
+  lock_data = lock_data_arg;
   left_neg_inf = left_key == toku_dbt_negative_infinity();
   left_pos_inf = left_key == toku_dbt_positive_infinity();
   left_key_size = toku_dbt_is_infinite(left_key) ? 0 : left_key->size;
@@ -88,6 +90,9 @@ void range_buffer::record_header::init(const DBT *left_key,
   }
 }
 
+void* range_buffer::iterator::record::get_lock_data() const {
+  return _header.lock_data;
+}
 const DBT *range_buffer::iterator::record::get_left_key(void) const {
   if (_header.left_neg_inf) {
     return toku_dbt_negative_infinity();
@@ -195,15 +200,15 @@ void range_buffer::create(void) {
 }
 
 void range_buffer::append(const DBT *left_key, const DBT *right_key,
-                          bool is_write_request) {
+                          bool is_write_request, void *lock_data) {
   // if the keys are equal, then only one copy is stored.
   if (toku_dbt_equals(left_key, right_key)) {
     invariant(left_key->size <= MAX_KEY_SIZE);
-    append_point(left_key, is_write_request);
+    append_point(left_key, is_write_request, lock_data);
   } else {
     invariant(left_key->size <= MAX_KEY_SIZE);
     invariant(right_key->size <= MAX_KEY_SIZE);
-    append_range(left_key, right_key, is_write_request);
+    append_range(left_key, right_key, is_write_request, lock_data);
   }
   _num_ranges++;
 }
@@ -219,13 +224,13 @@ int range_buffer::get_num_ranges(void) const { return _num_ranges; }
 void range_buffer::destroy(void) { _arena.destroy(); }
 
 void range_buffer::append_range(const DBT *left_key, const DBT *right_key,
-                                bool is_exclusive) {
+                                bool is_exclusive, void *lock_data) {
   size_t record_length =
       sizeof(record_header) + left_key->size + right_key->size;
   char *buf = reinterpret_cast<char *>(_arena.malloc_from_arena(record_length));
 
   record_header h;
-  h.init(left_key, right_key, is_exclusive);
+  h.init(left_key, right_key, is_exclusive, lock_data);
 
   // serialize the header
   memcpy(buf, &h, sizeof(record_header));
@@ -243,12 +248,12 @@ void range_buffer::append_range(const DBT *left_key, const DBT *right_key,
   }
 }
 
-void range_buffer::append_point(const DBT *key, bool is_exclusive) {
+void range_buffer::append_point(const DBT *key, bool is_exclusive, void *lock_data) {
   size_t record_length = sizeof(record_header) + key->size;
   char *buf = reinterpret_cast<char *>(_arena.malloc_from_arena(record_length));
 
   record_header h;
-  h.init(key, nullptr, is_exclusive);
+  h.init(key, nullptr, is_exclusive, lock_data);
 
   // serialize the header
   memcpy(buf, &h, sizeof(record_header));

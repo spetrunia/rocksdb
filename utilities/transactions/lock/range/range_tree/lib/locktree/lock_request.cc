@@ -196,13 +196,14 @@ int lock_request::start(void) {
 
   txnid_set conflicts;
   conflicts.create();
+  acquired_lock_node= nullptr; // psergey
   if (m_type == type::WRITE) {
     r = m_lt->acquire_write_lock(m_txnid, m_left_key, m_right_key, &conflicts,
-                                 m_big_txn);
+                                 m_big_txn, &acquired_lock_node);
   } else {
     invariant(m_type == type::READ);
     r = m_lt->acquire_read_lock(m_txnid, m_left_key, m_right_key, &conflicts,
-                                m_big_txn);
+                                m_big_txn, &acquired_lock_node);
   }
 
   // if the lock is not granted, save it to the set of lock requests
@@ -329,12 +330,13 @@ int lock_request::retry(lock_wait_infos *conflicts_collector) {
   txnid_set conflicts;
   conflicts.create();
 
+  acquired_lock_node= nullptr; // psergey
   if (m_type == type::WRITE) {
     r = m_lt->acquire_write_lock(m_txnid, m_left_key, m_right_key, &conflicts,
-                                 m_big_txn);
+                                 m_big_txn, &acquired_lock_node);
   } else {
     r = m_lt->acquire_read_lock(m_txnid, m_left_key, m_right_key, &conflicts,
-                                m_big_txn);
+                                m_big_txn, &acquired_lock_node);
   }
 
   // if the acquisition succeeded then remove ourselves from the

@@ -581,8 +581,9 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
 
   // Lock this key if this transactions hasn't already locked it or we require
   // an upgrade.
+  void *lock_data= NULL;
   if (!previously_locked || lock_upgrade) {
-    s = txn_db_impl_->TryLock(this, cfh_id, key_str, exclusive);
+    s = txn_db_impl_->TryLock(this, cfh_id, key_str, exclusive, &lock_data);
   }
 
   SetSnapshotIfNeeded();
@@ -651,7 +652,7 @@ Status PessimisticTransaction::TryLock(ColumnFamilyHandle* column_family,
     // setting, and at a lower sequence number, so skipping here should be
     // safe.
     if (!assume_tracked) {
-      TrackKey(cfh_id, key_str, tracked_at_seq, read_only, exclusive);
+      TrackKey(cfh_id, key_str, tracked_at_seq, read_only, exclusive, lock_data);
     } else {
 #ifndef NDEBUG
       if (tracked_locks_->IsPointLockSupported()) {
@@ -674,11 +675,11 @@ Status PessimisticTransaction::GetRangeLock(ColumnFamilyHandle* column_family,
   ColumnFamilyHandle* cfh =
       column_family ? column_family : db_impl_->DefaultColumnFamily();
   uint32_t cfh_id = GetColumnFamilyID(cfh);
-
-  Status s = txn_db_impl_->TryRangeLock(this, cfh_id, start_endp, end_endp);
+  void *lock_data;
+  Status s = txn_db_impl_->TryRangeLock(this, cfh_id, start_endp, end_endp, &lock_data);
 
   if (s.ok()) {
-    RangeLockRequest req{cfh_id, start_endp, end_endp};
+    RangeLockRequest req{cfh_id, start_endp, end_endp, lock_data};
     tracked_locks_->Track(req);
   }
   return s;

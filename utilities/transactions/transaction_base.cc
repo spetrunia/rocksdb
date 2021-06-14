@@ -555,13 +555,14 @@ uint64_t TransactionBaseImpl::GetNumKeys() const {
 
 void TransactionBaseImpl::TrackKey(uint32_t cfh_id, const std::string& key,
                                    SequenceNumber seq, bool read_only,
-                                   bool exclusive) {
+                                   bool exclusive, void *lock_data) {
   PointLockRequest r;
   r.column_family_id = cfh_id;
   r.key = key;
   r.seq = seq;
   r.read_only = read_only;
   r.exclusive = exclusive;
+  r.lock_data = lock_data;
 
   // Update map of all tracked keys for this transaction
   tracked_locks_->Track(r);

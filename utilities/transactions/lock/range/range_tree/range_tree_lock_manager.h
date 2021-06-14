@@ -44,7 +44,7 @@ class RangeTreeLockManager : public RangeLockManagerBase,
   using LockManager::TryLock;
   Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
                  const Endpoint& start_endp, const Endpoint& end_endp, Env* env,
-                 bool exclusive) override;
+                 bool exclusive, void **lock_data) override;
 
   void UnLock(PessimisticTransaction* txn, const LockTracker& tracker,
               Env* env) override;

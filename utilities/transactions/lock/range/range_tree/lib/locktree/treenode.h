@@ -54,6 +54,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #pragma once
 
 #include <string.h>
+#include <atomic>
 
 #include "../ft/comparator.h"
 #include "../portability/memory.h"
@@ -161,7 +162,7 @@ class treenode {
 
   // effect: inserts the given range and txnid into a subtree, recursively
   // requires: range does not overlap with any node below the subtree
-  bool insert(const keyrange &range, TXNID txnid, bool is_shared);
+  bool insert(const keyrange &range, TXNID txnid, bool is_shared, void **lock_data);
 
   // effect: removes the given range from the subtree
   // requires: range exists in the subtree
@@ -171,6 +172,8 @@ class treenode {
   // effect: removes this node and all of its children, recursively
   // requires: every node at and below this node is unlocked
   void recursive_remove(void);
+
+  std::atomic<bool> m_is_deleted;
 
  private:
   // the child_ptr is a light abstraction for the locking of
@@ -259,6 +262,8 @@ class treenode {
   // returns: the new root of the subtree
   treenode *remove_root_of_subtree(void);
 
+  treenode *remove_root_of_subtree2(void);
+
   // requires: subtree is non-empty, direction is not 0
   // returns: the child of the subtree at either the left or rightmost extreme
   treenode *find_child_at_extreme(int direction, treenode **parent);
@@ -297,6 +302,8 @@ class treenode {
   static void swap_in_place(treenode *node1, treenode *node2);
 
   friend class concurrent_tree_unit_test;
+
+  friend treenode *maybe_delete(treenode *node);
 };
 
 } /* namespace toku */

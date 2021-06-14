@@ -67,7 +67,8 @@ Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
                                      uint32_t column_family_id,
                                      const Endpoint& start_endp,
                                      const Endpoint& end_endp, Env*,
-                                     bool exclusive) {
+                                     bool exclusive, 
+                                     void **lock_data) {
   toku::lock_request request;
   request.create(mutex_factory_);
   DBT start_key_dbt, end_key_dbt;
@@ -134,6 +135,9 @@ Status RangeTreeLockManager::TryLock(PessimisticTransaction* txn,
   request.destroy();
   switch (r) {
     case 0:
+      //
+      if (lock_data)
+         *lock_data= request.acquired_lock_node;
       break;  // fall through
     case DB_LOCK_NOTGRANTED:
       return Status::TimedOut(Status::SubCode::kLockTimeout);
@@ -363,6 +367,24 @@ void RangeTreeLockManager::AddColumnFamily(const ColumnFamilyHandle* cfh) {
     cmp.destroy();
 
     ltree_map_.insert({column_family_id, MakeLockTreePtr(ltree)});
+
+    //if (column_family_id) 
+    {
+      const char *b="Fake-Root";
+      std::string key;
+      serialize_endpoint(Endpoint(Slice(b, strlen(b)), false), &key);
+      DBT key_dbt;
+      toku_fill_dbt(&key_dbt, key.data(), key.size());
+      TXNID dummy_txn_id(123);
+      void *dummy;
+      txnid_set conflicts; 
+      conflicts.create();
+
+      ltree->acquire_write_lock(dummy_txn_id, &key_dbt, &key_dbt, &conflicts,
+                                false/*big_txn*/, &dummy);
+      
+      conflicts.destroy();
+    }
   }
 }
 

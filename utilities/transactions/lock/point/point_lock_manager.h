@@ -133,10 +133,10 @@ class PointLockManager : public LockManager {
   void RemoveColumnFamily(const ColumnFamilyHandle* cf) override;
 
   Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
-                 const std::string& key, Env* env, bool exclusive) override;
+                 const std::string& key, Env* env, bool exclusive, void **lock_data) override;
   Status TryLock(PessimisticTransaction* txn, ColumnFamilyId column_family_id,
                  const Endpoint& start, const Endpoint& end, Env* env,
-                 bool exclusive) override;
+                 bool exclusive, void **lock_data) override;
 
   void UnLock(PessimisticTransaction* txn, const LockTracker& tracker,
               Env* env) override;

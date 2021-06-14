@@ -98,9 +98,10 @@ class PessimisticTransactionDB : public TransactionDB {
   virtual Status DropColumnFamily(ColumnFamilyHandle* column_family) override;
 
   Status TryLock(PessimisticTransaction* txn, uint32_t cfh_id,
-                 const std::string& key, bool exclusive);
+                 const std::string& key, bool exclusive, void **lock_data=nullptr);
   Status TryRangeLock(PessimisticTransaction* txn, uint32_t cfh_id,
-                      const Endpoint& start_endp, const Endpoint& end_endp);
+                      const Endpoint& start_endp, const Endpoint& end_endp,
+                      void **lock_data=nullptr);
 
   void UnLock(PessimisticTransaction* txn, const LockTracker& keys);
   void UnLock(PessimisticTransaction* txn, uint32_t cfh_id,

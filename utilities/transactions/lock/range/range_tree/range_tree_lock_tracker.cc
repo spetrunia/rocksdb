@@ -26,7 +26,7 @@ void RangeTreeLockTracker::Track(const PointLockRequest &lock_req) {
   serialize_endpoint(Endpoint(lock_req.key, false), &key);
   toku_fill_dbt(&key_dbt, key.data(), key.size());
   RangeLockList *rl = getOrCreateList();
-  rl->Append(lock_req.column_family_id, &key_dbt, &key_dbt);
+  rl->Append(lock_req.column_family_id, &key_dbt, &key_dbt, lock_req.lock_data);
 }
 
 void RangeTreeLockTracker::Track(const RangeLockRequest &lock_req) {
@@ -40,7 +40,7 @@ void RangeTreeLockTracker::Track(const RangeLockRequest &lock_req) {
   toku_fill_dbt(&end_dbt, end_key.data(), end_key.size());
 
   RangeLockList *rl = getOrCreateList();
-  rl->Append(lock_req.column_family_id, &start_dbt, &end_dbt);
+  rl->Append(lock_req.column_family_id, &start_dbt, &end_dbt, lock_req.lock_data);
 }
 
 PointLockStatus RangeTreeLockTracker::GetPointLockStatus(
@@ -58,7 +58,7 @@ PointLockStatus RangeTreeLockTracker::GetPointLockStatus(
 void RangeTreeLockTracker::Clear() { range_list_.reset(); }
 
 void RangeLockList::Append(ColumnFamilyId cf_id, const DBT *left_key,
-                           const DBT *right_key) {
+                           const DBT *right_key, void *lock_data) {
   MutexLock l(&mutex_);
   // Only the transaction owner thread calls this function.
   // The same thread does the lock release, so we can be certain nobody is
@@ -70,7 +70,7 @@ void RangeLockList::Append(ColumnFamilyId cf_id, const DBT *left_key,
     it = buffers_.emplace(cf_id, std::make_shared<toku::range_buffer>()).first;
     it->second->create();
   }
-  it->second->append(left_key, right_key);
+  it->second->append(left_key, right_key, true /*is_write_request*/, lock_data);
 }
 
 void RangeLockList::ReleaseLocks(RangeTreeLockManager *mgr,

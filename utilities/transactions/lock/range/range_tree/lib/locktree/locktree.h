@@ -309,7 +309,7 @@ class locktree {
   // note: Read locks cannot be shared between txnids, as one would expect.
   //       This is for simplicity since read locks are rare in MySQL.
   int acquire_read_lock(TXNID txnid, const DBT *left_key, const DBT *right_key,
-                        txnid_set *conflicts, bool big_txn);
+                        txnid_set *conflicts, bool big_txn, void **lock_data);
 
   // effect: Attempts to grant a write lock for the range of keys between
   // [left_key, right_key]. returns: If the lock cannot be granted, return
@@ -318,7 +318,7 @@ class locktree {
   //          the range. If the locktree cannot create more locks, return
   //          TOKUDB_OUT_OF_LOCKS.
   int acquire_write_lock(TXNID txnid, const DBT *left_key, const DBT *right_key,
-                         txnid_set *conflicts, bool big_txn);
+                         txnid_set *conflicts, bool big_txn, void **lock_data);
 
   // effect: populate the conflicts set with the txnids that would preventing
   //         the given txnid from getting a lock on [left_key, right_key]
@@ -540,14 +540,16 @@ class locktree {
 
   int acquire_lock_consolidated(void *prepared_lkr, TXNID txnid,
                                 const DBT *left_key, const DBT *right_key,
-                                bool is_write_request, txnid_set *conflicts);
+                                bool is_write_request, txnid_set *conflicts,
+                                void **lock_data);
 
   int acquire_lock(bool is_write_request, TXNID txnid, const DBT *left_key,
-                   const DBT *right_key, txnid_set *conflicts);
+                   const DBT *right_key, txnid_set *conflicts,
+                   void **lock_data);
 
   int try_acquire_lock(bool is_write_request, TXNID txnid, const DBT *left_key,
                        const DBT *right_key, txnid_set *conflicts,
-                       bool big_txn);
+                       bool big_txn, void **lock_data);
 
   friend class locktree_unit_test;
   friend class manager_unit_test;

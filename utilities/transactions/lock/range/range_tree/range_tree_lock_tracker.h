@@ -40,7 +40,7 @@ class RangeLockList {
 
   RangeLockList() : releasing_locks_(false) {}
 
-  void Append(ColumnFamilyId cf_id, const DBT* left_key, const DBT* right_key);
+  void Append(ColumnFamilyId cf_id, const DBT* left_key, const DBT* right_key, void *lock_data);
   void ReleaseLocks(RangeTreeLockManager* mgr, PessimisticTransaction* txn,
                     bool all_trx_locks);
   void ReplaceLocks(const toku::locktree* lt, const toku::range_buffer& buffer);

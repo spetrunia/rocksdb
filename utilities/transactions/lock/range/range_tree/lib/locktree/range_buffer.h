@@ -79,12 +79,13 @@ class range_buffer {
     uint16_t left_key_size;
     uint16_t right_key_size;
     bool is_exclusive_lock;
+    void *lock_data;
 
     bool left_is_infinite(void) const;
 
     bool right_is_infinite(void) const;
 
-    void init(const DBT *left_key, const DBT *right_key, bool is_exclusive);
+    void init(const DBT *left_key, const DBT *right_key, bool is_exclusive, void *lock_data_arg);
   };
   // PORT static_assert(sizeof(record_header) == 8, "record header format is
   // off");
@@ -107,6 +108,8 @@ class range_buffer {
 
       // get a read-only pointer to the right key of this record's range
       const DBT *get_right_key(void) const;
+
+      void *get_lock_data() const;
 
       // how big is this record? this tells us where the next record is
       size_t size(void) const;
@@ -150,7 +153,7 @@ class range_buffer {
   // append a left/right key range to the buffer.
   // if the keys are equal, then only one copy is stored.
   void append(const DBT *left_key, const DBT *right_key,
-              bool is_write_request = false);
+              bool is_write_request = false, void *lock_data=nullptr);
 
   // is this range buffer empty?
   bool is_empty(void) const;
@@ -168,11 +171,11 @@ class range_buffer {
   int _num_ranges;
 
   void append_range(const DBT *left_key, const DBT *right_key,
-                    bool is_write_request);
+                    bool is_write_request, void *lock_data=nullptr);
 
   // append a point to the buffer. this is the space/time saving
   // optimization for key ranges where left == right.
-  void append_point(const DBT *key, bool is_write_request);
+  void append_point(const DBT *key, bool is_write_request, void *lock_data=nullptr);
 };
 
 } /* namespace toku */

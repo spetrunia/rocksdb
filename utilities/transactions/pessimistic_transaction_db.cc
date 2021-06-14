@@ -387,16 +387,18 @@ Status PessimisticTransactionDB::DropColumnFamily(
 Status PessimisticTransactionDB::TryLock(PessimisticTransaction* txn,
                                          uint32_t cfh_id,
                                          const std::string& key,
-                                         bool exclusive) {
-  return lock_manager_->TryLock(txn, cfh_id, key, GetEnv(), exclusive);
+                                         bool exclusive,
+                                         void **lock_data) {
+  return lock_manager_->TryLock(txn, cfh_id, key, GetEnv(), exclusive, lock_data);
 }
 
 Status PessimisticTransactionDB::TryRangeLock(PessimisticTransaction* txn,
                                               uint32_t cfh_id,
                                               const Endpoint& start_endp,
-                                              const Endpoint& end_endp) {
+                                              const Endpoint& end_endp,
+                                              void **lock_data) {
   return lock_manager_->TryLock(txn, cfh_id, start_endp, end_endp, GetEnv(),
-                                /*exclusive=*/true);
+                                /*exclusive=*/true, lock_data);
 }
 
 void PessimisticTransactionDB::UnLock(PessimisticTransaction* txn,

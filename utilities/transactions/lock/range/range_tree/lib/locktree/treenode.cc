@@ -1,5 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+// vim: ft=cpp:expandtab:ts=8:sw=2:softtabstop=2:
 #ifndef ROCKSDB_LITE
 #ifndef OS_WIN
 #ident "$Id$"
@@ -84,6 +84,8 @@ void treenode::init(const comparator *cmp) {
   m_is_shared = false;
   m_owners = nullptr;
 
+  m_is_deleted= false;
+
   // use an adaptive mutex at each node since we expect the time the
   // lock is held to be relatively short compared to a context switch.
   // indeed, this improves performance at high thread counts considerably.
@@ -135,6 +137,7 @@ treenode *treenode::alloc(const comparator *cmp, const keyrange &range,
 }
 
 void treenode::swap_in_place(treenode *node1, treenode *node2) {
+  assert(0);
   keyrange tmp_range = node1->m_range;
   TXNID tmp_txnid = node1->m_txnid;
   node1->m_range = node2->m_range;
@@ -230,18 +233,22 @@ treenode *treenode::find_node_with_overlapping_child(
   }
 }
 
-bool treenode::insert(const keyrange &range, TXNID txnid, bool is_shared) {
+bool treenode::insert(const keyrange &range, TXNID txnid, bool is_shared, void **lock_data) {
   int rc = true;
   // choose a child to check. if that child is null, then insert the new node
   // there. otherwise recur down that child's subtree
   keyrange::comparison c = range.compare(*m_cmp, m_range);
+  if (lock_data)
+      *lock_data= NULL;
   if (c == keyrange::comparison::LESS_THAN) {
     treenode *left_child = lock_and_rebalance_left();
     if (left_child == nullptr) {
       left_child = treenode::alloc(m_cmp, range, txnid, is_shared);
+      if (lock_data)
+         *lock_data= left_child;
       m_left_child.set(left_child);
     } else {
-      left_child->insert(range, txnid, is_shared);
+      left_child->insert(range, txnid, is_shared, lock_data);
       left_child->mutex_unlock();
     }
   } else if (c == keyrange::comparison::GREATER_THAN) {
@@ -249,9 +256,11 @@ bool treenode::insert(const keyrange &range, TXNID txnid, bool is_shared) {
     treenode *right_child = lock_and_rebalance_right();
     if (right_child == nullptr) {
       right_child = treenode::alloc(m_cmp, range, txnid, is_shared);
+      if (lock_data)
+         *lock_data= right_child;
       m_right_child.set(right_child);
     } else {
-      right_child->insert(range, txnid, is_shared);
+      right_child->insert(range, txnid, is_shared, lock_data);
       right_child->mutex_unlock();
     }
   } else if (c == keyrange::comparison::EQUALS) {
@@ -286,6 +295,13 @@ treenode *treenode::find_rightmost_child(treenode **parent) {
   return find_child_at_extreme(1, parent);
 }
 
+/*
+   psergey: remove this subtree.
+   Entry: this node is locked (if it wasn't, it wouldn't be possible to return its value)
+   Return:
+     the node that should be put in place of this node.
+     (at the moment, return value is either nullptr or "this")
+*/
 treenode *treenode::remove_root_of_subtree() {
   // if this node has no children, just free it and return null
   if (m_left_child.ptr == nullptr && m_right_child.ptr == nullptr) {
@@ -335,6 +351,64 @@ treenode *treenode::remove_root_of_subtree() {
   return this;
 }
 
+// psergey: this should remove this node but without use of swap_in_place
+// operations.
+//
+//  @return
+//   The node that should be put instead of this node. can be NULL.
+
+treenode *treenode::remove_root_of_subtree2() {
+  // if this node has no children, just free it and return null
+  if (m_left_child.ptr == nullptr && m_right_child.ptr == nullptr) {
+    // treenode::free requires that non-root nodes are unlocked
+    if (!is_root()) {
+      mutex_unlock();
+    }
+    treenode::free(this);
+    return nullptr;
+  }
+
+  // we have a child, so get either the in-order successor or
+  // predecessor of this node to be our replacement.
+  // replacement_parent is updated by the find functions as
+  // they recur down the tree, so initialize it to this.
+  treenode *child, *replacement;
+  treenode *replacement_parent = this;
+  if (m_left_child.ptr != nullptr) {
+    child = m_left_child.get_locked();
+    replacement = child->find_rightmost_child(&replacement_parent);
+    invariant(replacement == child || replacement_parent != this);
+
+    // detach the replacement from its parent
+    if (replacement_parent == this) {
+      m_left_child = replacement->m_left_child;
+    } else {
+      replacement_parent->m_right_child = replacement->m_left_child;
+    }
+  } else {
+    child = m_right_child.get_locked();
+    replacement = child->find_leftmost_child(&replacement_parent);
+    invariant(replacement == child || replacement_parent != this);
+
+    // detach the replacement from its parent
+    if (replacement_parent == this) {
+      m_right_child = replacement->m_right_child;
+    } else {
+      replacement_parent->m_left_child = replacement->m_right_child;
+    }
+  }
+  child->mutex_unlock();
+
+  
+  //DONT:
+  // swap in place with the detached replacement, then destroy it
+  //treenode::swap_in_place(replacement, this);
+  //treenode::free(replacement);
+
+  return replacement;
+}
+
+
 void treenode::recursive_remove(void) {
   treenode *left = m_left_child.ptr;
   if (left) {
@@ -365,7 +439,7 @@ void treenode::remove_shared_owner(TXNID txnid) {
     m_owners = nullptr;
   }
 }
-
+// psergey: return the node that should be put in place of this node...
 treenode *treenode::remove(const keyrange &range, TXNID txnid) {
   treenode *child;
   // if the range is equal to this node's range, then just remove
@@ -492,24 +566,71 @@ treenode *treenode::maybe_rebalance(void) {
   return new_root;
 }
 
+treenode *maybe_delete(treenode *node);
+
 treenode *treenode::lock_and_rebalance_left(void) {
   treenode *child = m_left_child.get_locked();
+
   if (child) {
-    treenode *new_root = child->maybe_rebalance();
-    m_left_child.set(new_root);
-    child = new_root;
+    child = maybe_delete(child);
+    
+    if (child) {
+      treenode *new_root = child->maybe_rebalance();
+      if (new_root != child)
+        child= maybe_delete(new_root);
+    }
   }
+  
+  m_left_child.set(child);
   return child;
 }
 
 treenode *treenode::lock_and_rebalance_right(void) {
   treenode *child = m_right_child.get_locked();
+
   if (child) {
-    treenode *new_root = child->maybe_rebalance();
-    m_right_child.set(new_root);
-    child = new_root;
+    child = maybe_delete(child);
+
+    if (child) {
+      treenode *new_root = child->maybe_rebalance();
+      if (new_root != child)
+        child= maybe_delete(new_root);
+    }
   }
+
+  m_right_child.set(child);
   return child;
+}
+
+/*
+  Lazily remove the node.
+  
+  @param
+    node.  The node is locked. Its parent is also locked so we are allowed 
+           to modify it.
+           Nobody's waiting on the node's mutex (because we've locked the parent,
+           they are waiting on its parent)
+
+  @return
+     The same node that passed.
+
+     The node to put instead of the removed node. Can return NULL.
+     The returned node must be locked.
+*/
+
+treenode *maybe_delete(treenode *node) {
+
+  while (node) {
+
+    if (!node->m_is_deleted.load())
+      return node; // Not deleted. Do nothing
+
+    node = node->remove_root_of_subtree2();
+    // Remove this node and return a tree made of its children...
+    if (node)
+     node->mutex_lock();
+  }
+  return node;
 }
 
 void treenode::child_ptr::set(treenode *node) {

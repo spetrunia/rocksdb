@@ -227,7 +227,7 @@ bool PointLockManager::IsLockExpired(TransactionID txn_id,
 Status PointLockManager::TryLock(PessimisticTransaction* txn,
                                  ColumnFamilyId column_family_id,
                                  const std::string& key, Env* env,
-                                 bool exclusive) {
+                                 bool exclusive, void**) {
   // Lookup lock map for this column family id
   std::shared_ptr<LockMap> lock_map_ptr = GetLockMap(column_family_id);
   LockMap* lock_map = lock_map_ptr.get();
@@ -704,7 +704,8 @@ Status PointLockManager::TryLock(PessimisticTransaction* /* txn */,
                                  ColumnFamilyId /* cf_id */,
                                  const Endpoint& /* start */,
                                  const Endpoint& /* end */, Env* /* env */,
-                                 bool /* exclusive */) {
+                                 bool /* exclusive */,
+                                 void **) {
   return Status::NotSupported(
       "PointLockManager does not support range locking");
 }

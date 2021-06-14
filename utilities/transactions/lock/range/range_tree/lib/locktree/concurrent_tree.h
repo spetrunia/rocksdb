@@ -120,7 +120,7 @@ class concurrent_tree {
     // inserts the given range into the tree, with an associated txnid.
     // requires: range does not overlap with anything in this locked_keyrange
     // rationale: caller is responsible for only inserting unique ranges
-    void insert(const keyrange &range, TXNID txnid, bool is_shared);
+    void insert(const keyrange &range, TXNID txnid, bool is_shared, void **lock_data);
 
     // effect: removes the given range from the tree.
     //         - txnid=TXNID_ANY means remove the range no matter what its

@@ -303,11 +303,11 @@ void locktree_manager::note_mem_released(uint64_t mem_released) {
 }
 
 bool locktree_manager::out_of_locks(void) const {
-  return m_current_lock_memory >= m_max_lock_memory;
+  return false;// m_current_lock_memory >= m_max_lock_memory;
 }
 
 bool locktree_manager::over_big_threshold(void) {
-  return m_current_lock_memory >= m_max_lock_memory / 2;
+  return false; //m_current_lock_memory >= m_max_lock_memory / 2;
 }
 
 int locktree_manager::iterate_pending_lock_requests(

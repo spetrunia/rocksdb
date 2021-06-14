@@ -42,11 +42,13 @@ class LockManager {
   // is responsible for calling UnLock() on this key.
   virtual Status TryLock(PessimisticTransaction* txn,
                          ColumnFamilyId column_family_id,
-                         const std::string& key, Env* env, bool exclusive) = 0;
+                         const std::string& key, Env* env, bool exclusive,
+                         void **lock_data=nullptr) = 0;
   // The range [start, end] are inclusive at both sides.
   virtual Status TryLock(PessimisticTransaction* txn,
                          ColumnFamilyId column_family_id, const Endpoint& start,
-                         const Endpoint& end, Env* env, bool exclusive) = 0;
+                         const Endpoint& end, Env* env, bool exclusive,
+                         void **lock_data=nullptr) = 0;
 
   // Unlock a key or a range locked by TryLock().  txn must be the same
   // Transaction that locked this key.

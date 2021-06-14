@@ -27,6 +27,8 @@ struct PointLockRequest {
   bool read_only = false;
   // Whether the lock is in exclusive mode.
   bool exclusive = true;
+
+  void *lock_data = nullptr;
 };
 
 // Request for locking a range of keys.
@@ -37,6 +39,8 @@ struct RangeLockRequest {
   // The range to be locked
   Endpoint start_endp;
   Endpoint end_endp;
+
+  void *lock_data = nullptr;
 };
 
 struct PointLockStatus {
